@@ -19,9 +19,9 @@ namespace RVMCoreTest
 
         private void button1_Click(object sender, EventArgs e)
         {
-            string[] margs = textBox1.Text.Split(' ');
-            RVMCore.TVAFT.SortFile(margs);
-            //MessageBox.Show(RVMCore.Share.FindTitle(textBox1.Text));
+            //string[] margs = textBox1.Text.Split(' ');
+            //RVMCore.TVAFT.SortFile(margs);
+            MessageBox.Show(RVMCore.Share.FindTitle(textBox1.Text));
             //MessageBox.Show(RVMCore.Share.GetTimeSpan(DateTime.Now, DateTime.Now.AddMonths(-1)));
         }
     }
