@@ -62,7 +62,9 @@ namespace RVMCore
         [DataMember]
         public string EPG_Passwd="me";
         [DataMember]
-        public string EPG_Addr = "localhost:40888";
+        public string EPG_ServiceAddr = "localhost:40888";
+        [DataMember]
+        public string EPG_BaseFolder = "Cache";
 
         public string GetFolderTag(ProgramGenre ge)
         {

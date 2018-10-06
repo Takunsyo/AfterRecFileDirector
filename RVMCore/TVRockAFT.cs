@@ -8,12 +8,16 @@ using System.Threading.Tasks;
 using Microsoft.VisualBasic;
 using RVMCore;
 using Newtonsoft.Json;
+using System.Net;
 
 namespace RVMCore
 {
     public static class TVAFT
     {
-        
+        public static bool IsNullOrEmptyOrWhiltSpace(this string input)
+        {
+            return string.IsNullOrWhiteSpace(input);
+        }
         public static bool SortFile(string[] margs)
         {
             SettingObj mySetting = null;
@@ -58,9 +62,23 @@ namespace RVMCore
                 }
                 clPara.Add(sbb.ToString()); // Lack of the last run in the loop, so add the last parameter manuly.
                 var id = int.Parse(clPara.First(x => x.StartsWith("-id")).Substring(4));
-                mpars = GetEPGFileInfo(id, "laoxiaoms", "76151319", "192.168.0.2:40888", mySetting.StorageFolder);
-                var channel = clPara.First(x => x.StartsWith("-cn")).Substring(4);
-                mpars.ChannelName = channel;
+                mpars = GetEPGFileInfo(id, mySetting.EPG_UserName, mySetting.EPG_Passwd,mySetting.EPG_ServiceAddr, System.IO.Path.Combine( mySetting.StorageFolder,mySetting.EPG_BaseFolder));
+                if (mpars.ChannelName.IsNullOrEmptyOrWhiltSpace())
+                {
+                    string channel = "";
+                    try
+                    {
+                        channel = clPara.First(x => x.StartsWith("-cn")).Substring(4);
+                    }
+                    catch
+                    {
+                        channel = "UNKNOW";
+                    }
+                    finally
+                    {
+                        mpars.ChannelName = channel;
+                    }
+                }
             }
             else
             {
@@ -419,7 +437,6 @@ namespace RVMCore
             SKY = 0x0001,
             UNKNOW = 0x00000001
         }
-
         private static StreamFile GetEPGFileInfo(int id,string username,string passwd,string serviceAddr,string baseFolder)
         {
             if (id == null || id <= 0) return null;
@@ -427,12 +444,18 @@ namespace RVMCore
             System.Net.HttpWebRequest req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(string.Format(EPGATTR,id.ToString(),serviceAddr));
             req.Method = "GET";
             req.Credentials = new System.Net.NetworkCredential(username,passwd);
-            //req.ContentType = "application/json; charset=utf-8";
-            var resp = req.GetResponse();
+            HttpWebResponse resp;
+            try
+            {
+                resp = (HttpWebResponse)req.GetResponse();
+            }
+            catch
+            {
+                return null;
+            }
             RecordedProgram body;
             using (System.IO.Stream st = resp.GetResponseStream())
             {
-                
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 byte[] buffer = new byte[int.Parse(cLen)];
@@ -441,7 +464,7 @@ namespace RVMCore
                 body = JsonConvert.DeserializeObject<RecordedProgram>(tmp);
             }
             StreamFile mFile = new StreamFile();
-            //mFile.ChannelName = GetChannelNameByID(body.channelId,username,passwd,serviceAddr);
+            mFile.ChannelName = GetChannelNameByID(body.channelId, username, passwd, serviceAddr);
             mFile.Content = body.description;
             mFile.Infomation = body.extended;
             mFile.ID = new Guid();
@@ -483,11 +506,18 @@ namespace RVMCore
             req.Method = "GET";
             req.Credentials = new System.Net.NetworkCredential(username, passwd);
             //req.ContentType = "application/json; charset=utf-8";
-            var resp = req.GetResponse();
+            HttpWebResponse resp;
+            try
+            {
+                 resp = (HttpWebResponse)req.GetResponse();
+            }
+            catch
+            {
+                return null;
+            }
             List<EPGchannel> body;
             using (System.IO.Stream st = resp.GetResponseStream())
             {
-
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 byte[] buffer = new byte[int.Parse(cLen)];
@@ -495,7 +525,14 @@ namespace RVMCore
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
                 body = JsonConvert.DeserializeObject<List<EPGchannel>>(tmp);
             }
-            return body.First(x => x.id == cid).name;
+            try
+            {
+                return body.First(x => x.id == cid).name;
+            }
+            catch
+            {
+                return null;
+            }
         }
         private class EPGchannel:epgDefault
         {
