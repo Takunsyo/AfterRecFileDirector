@@ -1,0 +1,163 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{04347B92-F457-4F76-9CF3-BF4248F459A5}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RVMCore</RootNamespace>
+    <AssemblyName>RVMCore</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Costura, Version=3.1.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
+      <HintPath>..\packages\Costura.Fody.3.1.0\lib\net46\Costura.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis, Version=1.35.1.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.1.35.1\lib\net45\Google.Apis.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Auth, Version=1.35.1.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.Auth.1.35.1\lib\net45\Google.Apis.Auth.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Auth.PlatformServices, Version=1.35.1.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.Auth.1.35.1\lib\net45\Google.Apis.Auth.PlatformServices.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Core, Version=1.35.1.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.Core.1.35.1\lib\net45\Google.Apis.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Drive.v3, Version=1.35.1.1323, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.Drive.v3.1.35.1.1323\lib\net45\Google.Apis.Drive.v3.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.PlatformServices, Version=1.35.1.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Apis.1.35.1\lib\net45\Google.Apis.PlatformServices.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Serialization" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="dsPlayer\amstream.cs" />
+    <Compile Include="dsPlayer\amvideo.cs" />
+    <Compile Include="dsPlayer\atscpsipparser.cs" />
+    <Compile Include="dsPlayer\austream.cs" />
+    <Compile Include="dsPlayer\AxCore.cs" />
+    <Compile Include="dsPlayer\AXExtend.cs" />
+    <Compile Include="dsPlayer\BDAIface.cs" />
+    <Compile Include="dsPlayer\Bdatif.cs" />
+    <Compile Include="dsPlayer\BDATypes.cs" />
+    <Compile Include="dsPlayer\Control.cs" />
+    <Compile Include="dsPlayer\DES.cs" />
+    <Compile Include="dsPlayer\DevEnum.cs" />
+    <Compile Include="dsPlayer\DMODShow.cs" />
+    <Compile Include="dsPlayer\dsattrib.cs" />
+    <Compile Include="dsPlayer\DsUtils.cs" />
+    <Compile Include="dsPlayer\dvbsiparser.cs" />
+    <Compile Include="dsPlayer\DVDIf.cs" />
+    <Compile Include="dsPlayer\DynGraph.cs" />
+    <Compile Include="dsPlayer\encdec.cs" />
+    <Compile Include="dsPlayer\EvCode.cs" />
+    <Compile Include="dsPlayer\IL21Dec.cs" />
+    <Compile Include="dsPlayer\MediaObj.cs" />
+    <Compile Include="dsPlayer\MediaParam.cs" />
+    <Compile Include="dsPlayer\MediaPlayer.cs" />
+    <Compile Include="dsPlayer\Misc.cs" />
+    <Compile Include="dsPlayer\Mixerocx.cs" />
+    <Compile Include="dsPlayer\mmstream.cs" />
+    <Compile Include="dsPlayer\mpconfig.cs" />
+    <Compile Include="dsPlayer\Mpeg2Data.cs" />
+    <Compile Include="dsPlayer\mpeg2psiparser.cs" />
+    <Compile Include="dsPlayer\Mpeg2Structs.cs" />
+    <Compile Include="dsPlayer\other.cs" />
+    <Compile Include="dsPlayer\PlayList.cs" />
+    <Compile Include="dsPlayer\QEdit.cs" />
+    <Compile Include="dsPlayer\qnetwork.cs" />
+    <Compile Include="dsPlayer\RegBag.cs" />
+    <Compile Include="dsPlayer\Sbe.cs" />
+    <Compile Include="dsPlayer\Tuner.cs" />
+    <Compile Include="dsPlayer\TvRatings.cs" />
+    <Compile Include="dsPlayer\UUIDs.cs" />
+    <Compile Include="dsPlayer\VidCap.cs" />
+    <Compile Include="dsPlayer\VidPort.cs" />
+    <Compile Include="dsPlayer\Vmr9.cs" />
+    <Compile Include="dsPlayer\VmRender.cs" />
+    <Compile Include="Forms\FormMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Google\GoogleDrive.cs" />
+    <Compile Include="Google\GoogleFile.cs" />
+    <Compile Include="Google\GoogleFolder.cs" />
+    <Compile Include="Google\IGoogleDriveObject.cs" />
+    <Compile Include="Google\MetaInfo.cs" />
+    <Compile Include="MediaPlayer.cs" />
+    <Compile Include="SettingObj.cs" />
+    <Compile Include="ProgramGenre.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Forms\Settings.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Share.cs" />
+    <Compile Include="StreamFile.cs" />
+    <Compile Include="TVRockAFT.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Forms\FormMain.resx">
+      <DependentUpon>FormMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\Settings.resx">
+      <DependentUpon>Settings.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="FodyWeavers.xml" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="..\packages\Fody.3.1.3\build\Fody.targets" Condition="Exists('..\packages\Fody.3.1.3\build\Fody.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Fody.3.1.3\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Fody.3.1.3\build\Fody.targets'))" />
+    <Error Condition="!Exists('..\packages\Costura.Fody.3.1.0\build\Costura.Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.3.1.0\build\Costura.Fody.targets'))" />
+  </Target>
+  <Import Project="..\packages\Costura.Fody.3.1.0\build\Costura.Fody.targets" Condition="Exists('..\packages\Costura.Fody.3.1.0\build\Costura.Fody.targets')" />
+</Project>
