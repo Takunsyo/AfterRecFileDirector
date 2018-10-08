@@ -84,20 +84,21 @@ namespace RVMCore
             info.AddValue("rKWInfo", recKeywordInfo, typeof(string));
         }
         /// <summary>
-        ///     ''' Save current <see cref="StreamFile"/> object to a XML file.
-        ///     ''' </summary>
-        ///     ''' <param name="filePath">FILE PATH MEANS FILE PATH you fuck.</param>
-        ///     ''' <exception cref="UnauthorizedAccessException"></exception>
-        ///     ''' <exception cref="ArgumentException"></exception>
-        ///     ''' <exception cref="ArgumentNullException"></exception>
-        ///     ''' <exception cref="IO.DirectoryNotFoundException"></exception>
-        ///     ''' <exception cref="IO.PathTooLongException"></exception>
-        ///     ''' <exception cref="IO.IOException"></exception>
-        ///     ''' <exception cref="Security.SecurityException"></exception>
+        /// Save current <see cref="StreamFile"/> object to a XML file.
+        /// </summary>
+        /// <param name="filePath">FILE PATH MEANS FILE PATH you fuck.</param>
+        /// <exception cref="UnauthorizedAccessException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="IO.DirectoryNotFoundException"></exception>
+        /// <exception cref="IO.PathTooLongException"></exception>
+        /// <exception cref="IO.IOException"></exception>
+        /// <exception cref="Security.SecurityException"></exception>
         public void ToXml(string filePath)
         {
             string path = filePath.ToLower().EndsWith(".xml") ? filePath : filePath + ".xml";
             System.Xml.Serialization.XmlSerializer sr = new System.Xml.Serialization.XmlSerializer(typeof(StreamFile));
+
             using (System.IO.StreamWriter sw = new System.IO.StreamWriter(path))
             {
                 sr.Serialize(sw, this);
@@ -105,10 +106,10 @@ namespace RVMCore
             System.IO.File.SetAttributes(path, System.IO.File.GetAttributes(path) | System.IO.FileAttributes.Hidden);
         }
         /// <summary>
-        ///     ''' Read <see cref="StreamFile"/> object from a XML file.
-        ///     ''' </summary>
-        ///     ''' <param name="filePath">the full path of the xml file including file name.</param>
-        ///     ''' <exception cref="InvalidOperationException">if it fucks up, don't be mad.</exception>
+        /// Read <see cref="StreamFile"/> object from a XML file.
+        /// </summary>
+        /// <param name="filePath">the full path of the xml file including file name.</param>
+        /// <exception cref="InvalidOperationException">if it fucks up, don't be mad.</exception>
         public static StreamFile FromXml(string filePath)
         {
             System.Xml.Serialization.XmlSerializer sr = new System.Xml.Serialization.XmlSerializer(typeof(StreamFile));

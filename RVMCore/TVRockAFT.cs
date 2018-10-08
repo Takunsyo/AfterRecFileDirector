@@ -9,6 +9,8 @@ using Microsoft.VisualBasic;
 using RVMCore;
 using Newtonsoft.Json;
 using System.Net;
+using RVMCore.EPGStationWarpper;
+using RVMCore.EPGStationWarpper.Api;
 
 namespace RVMCore
 {
@@ -18,6 +20,7 @@ namespace RVMCore
         {
             return string.IsNullOrWhiteSpace(input);
         }
+
         public static bool SortFile(string[] margs)
         {
             SettingObj mySetting = null;
@@ -40,8 +43,9 @@ namespace RVMCore
                 }
             }
             StreamFile mpars = null;
-            if (margs.Contains("-epgstation")|| margs.Contains("-EPGSTATION"))
+            if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))
             {
+                Console.WriteLine("-=-=-=-=-=-=-=-=-=-=-=EPGstation=-=-=-=-=-=-=-=-=-=-=-");
                 // Start process the parameters, group them to their own entries.
                 List<string> clPara = new List<string>();
                 if (margs.Count() <= 1)
@@ -62,7 +66,10 @@ namespace RVMCore
                 }
                 clPara.Add(sbb.ToString()); // Lack of the last run in the loop, so add the last parameter manuly.
                 var id = int.Parse(clPara.First(x => x.StartsWith("-id")).Substring(4));
-                mpars = GetEPGFileInfo(id, mySetting.EPG_UserName, mySetting.EPG_Passwd,mySetting.EPG_ServiceAddr, System.IO.Path.Combine( mySetting.StorageFolder,mySetting.EPG_BaseFolder));
+                Console.WriteLine("Reading to access Epgstation server.");
+                var mAccess = new EPGAccess(mySetting); 
+                mpars = mAccess.GetStreamFileObj(id);
+                if (mpars == null) return false;
                 if (mpars.ChannelName.IsNullOrEmptyOrWhiltSpace())
                 {
                     string channel = "";
@@ -364,187 +371,5 @@ namespace RVMCore
             return ProgramGenre.Default;
         }
 
-
-        private class epgDefault
-        {
-            public int code;
-            public string message;
-            public string errors;
-        }
-
-        //EPGStation API
-        // /recorded/{id}
-        private class RecordedProgram : epgDefault
-        {
-            public int id;
-            public long channelId;
-            public string channelType;
-            public long startAt;
-            public long endAt;
-            public string name;
-            public string description;
-            public string extended;
-            public int genre1;
-            public int genre2;
-            public string videoType;
-            public string videoResolution;
-            public int videoStreamContent;
-            public int videoComponentType;
-            public int audioSamplingRate;
-            public int audioComponentType;
-            public bool recording;
-            public bool protection;
-            public long filesize;
-            public int errorCnt;
-            public int dropCnt;
-            public int scramblingCnt;
-            public bool hasThumbnail;
-            public bool original;
-            public string filename;
-            public dynamic encoded; //not needed
-            public dynamic encoding;//not needed
-        }
-
-        private class EPGRecorded: RecordedProgram
-        {
-            public c_type ChannelType {
-                get {
-                    switch (base.channelType.ToUpper())
-                    {
-                        case "GR":
-                            return c_type.GR;
-                            break;
-                        case "BS":
-                            return c_type.BS;
-                            break;
-                        case "CS":
-                            return c_type.CS;
-                            break;
-                        case "SKY":
-                            return c_type.SKY;
-                            break;
-                        default:
-                            return c_type.UNKNOW;
-                    }
-                }
-            }
-        }
-        private enum c_type
-        {
-            GR = 0x1,
-            BS = 0x01,
-            CS = 0x001,
-            SKY = 0x0001,
-            UNKNOW = 0x00000001
-        }
-        private static StreamFile GetEPGFileInfo(int id,string username,string passwd,string serviceAddr,string baseFolder)
-        {
-            if (id == null || id <= 0) return null;
-            string EPGATTR = "http://{1}/api/recorded/{0}";
-            System.Net.HttpWebRequest req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(string.Format(EPGATTR,id.ToString(),serviceAddr));
-            req.Method = "GET";
-            req.Credentials = new System.Net.NetworkCredential(username,passwd);
-            HttpWebResponse resp;
-            try
-            {
-                resp = (HttpWebResponse)req.GetResponse();
-            }
-            catch
-            {
-                return null;
-            }
-            RecordedProgram body;
-            using (System.IO.Stream st = resp.GetResponseStream())
-            {
-                var cLen = resp.Headers.Get("content-length");
-                if (string.IsNullOrWhiteSpace(cLen)) return null;
-                byte[] buffer = new byte[int.Parse(cLen)];
-                st.ReadAsync(buffer, 0, int.Parse(cLen));                
-                string tmp = System.Text.Encoding.UTF8.GetString(buffer);
-                body = JsonConvert.DeserializeObject<RecordedProgram>(tmp);
-            }
-            StreamFile mFile = new StreamFile();
-            mFile.ChannelName = GetChannelNameByID(body.channelId, username, passwd, serviceAddr);
-            mFile.Content = body.description;
-            mFile.Infomation = body.extended;
-            mFile.ID = new Guid();
-            mFile.Title = body.name;
-            mFile.recTitle = body.name;
-            mFile.recKeyWord = "EPGStation "+body.id.ToString();
-            mFile.recSubTitle = body.videoResolution + body.videoResolution + body.videoType;
-            mFile.recKeywordInfo = string.Format("Error:E({0})D({1})S({2})", body.errorCnt, body.dropCnt, body.scramblingCnt);
-            switch (body.genre1)
-            {
-                case 0: mFile.Genre = ProgramGenre.News; break;
-                case 1:mFile.Genre = ProgramGenre.Sports;break;
-                case 2:mFile.Genre = ProgramGenre.Infomation;break;
-                case 3:mFile.Genre = ProgramGenre.Drama;break;
-                case 4:mFile.Genre = ProgramGenre.Music;break;
-                case 5:mFile.Genre = ProgramGenre.Variety;break;
-                case 6:mFile.Genre = ProgramGenre.Movie;break;
-                case 7:mFile.Genre = ProgramGenre.Anime;break;
-                case 8:mFile.Genre = ProgramGenre.Documantry;break;
-                case 9:mFile.Genre = ProgramGenre.Live;break;
-                case 10: mFile.Genre = ProgramGenre.Education;break;
-                default:mFile.Genre = ProgramGenre.Others;break;
-            }
-            mFile.StartTime = GetTimeFromUNIXTime(body.startAt);
-            mFile.EndTime = GetTimeFromUNIXTime(body.endAt);
-            mFile.FilePath = System.IO.Path.Combine(baseFolder,System.Web.HttpUtility.UrlDecode(body.filename));
-            return mFile;
-        }
-        private static DateTime GetTimeFromUNIXTime(long time)
-        {
-            System.DateTime dateTime = new System.DateTime(1970, 1, 1, 0, 0, 0, 0);
-            dateTime = dateTime.AddSeconds(time/1000);
-            return dateTime;
-        }
-        private static string GetChannelNameByID(long cid,string username,string passwd,string serviceAddr)
-        {
-            string EPGATTR = "http://{0}/api/channels";
-            System.Net.HttpWebRequest req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(string.Format(EPGATTR, serviceAddr));
-            req.Method = "GET";
-            req.Credentials = new System.Net.NetworkCredential(username, passwd);
-            //req.ContentType = "application/json; charset=utf-8";
-            HttpWebResponse resp;
-            try
-            {
-                 resp = (HttpWebResponse)req.GetResponse();
-            }
-            catch
-            {
-                return null;
-            }
-            List<EPGchannel> body;
-            using (System.IO.Stream st = resp.GetResponseStream())
-            {
-                var cLen = resp.Headers.Get("content-length");
-                if (string.IsNullOrWhiteSpace(cLen)) return null;
-                byte[] buffer = new byte[int.Parse(cLen)];
-                st.ReadAsync(buffer, 0, int.Parse(cLen));
-                string tmp = System.Text.Encoding.UTF8.GetString(buffer);
-                body = JsonConvert.DeserializeObject<List<EPGchannel>>(tmp);
-            }
-            try
-            {
-                return body.First(x => x.id == cid).name;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-        private class EPGchannel:epgDefault
-        {
-            public long id;
-            public int serviceId;
-            public int networkId;
-            public string name;
-            public int remoteControlKeyId;
-            public bool hasLogoData;
-            public string channelType;
-            public string channel;
-            public int type;
-        }
     }
 }
