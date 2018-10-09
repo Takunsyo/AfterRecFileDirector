@@ -17,7 +17,7 @@ namespace RVMCore
 {
     public static class TVAFT
     {
-        public static ILog LOG { get; private set; }
+        public static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public static bool IsNullOrEmptyOrWhiltSpace(this string input)
         {
@@ -26,8 +26,7 @@ namespace RVMCore
 
         public static bool SortFile(string[] margs)
         {
-            LOG = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            LOG.Info("App started.");
+            logger.Info("App started.");
             SettingObj mySetting = null;
             bool a = false;
             while (!a)
@@ -43,7 +42,7 @@ namespace RVMCore
                 catch (Exception ex)
                 {
                     Console.WriteLine("Error : {0}", ex.Message);
-                    LOG.Error(string.Format("Fail to read settings [{0}]",ex.Message));
+                    logger.ErrorFormat("Fail to read settings [{0}]",ex.Message);
                     Console.WriteLine("Sleep 10 sec...");
                     System.Threading.Thread.Sleep(10000);
                 }
@@ -71,7 +70,7 @@ namespace RVMCore
                     else
                         sbb.AppendFormat(" {0}", p);
                 }
-                LOG.Info(string.Format("App start with parameter\"{0}\"",sbb.ToString()));
+                logger.InfoFormat("App start with parameter\"{0}\"",sbb.ToString());
                 clPara.Add(sbb.ToString()); // Lack of the last run in the loop, so add the last parameter manuly.
                 int id = -1;
                 bool t_check= false;
@@ -85,27 +84,23 @@ namespace RVMCore
                 }
                 if (!t_check)
                 {//if -id is not working, try get enviroment variable. maybe not working.
-                    LOG.Error("parameter -id not found or not a number.");
+                    logger.Error("parameter -id not found or not a number.");
                     var e_id = Environment.GetEnvironmentVariable("RECORDEDID");
                     if (!e_id.IsNullOrEmptyOrWhiltSpace()&& !int.TryParse(e_id, out id))
                     {
-                        Console.WriteLine("Error when dealing with [ID].", id.ToString());
-                        LOG.Error("Failed to find \"RECORDEDID\" from Enviorment variable");                    
-                        Console.WriteLine("Exiting...");
-                        LOG.Info("App catch error. exiting...");
+                        "Failed to find \"RECORDEDID\" from Enviorment variable".ErrorLognConsole();                    
+                        "App catch error. exiting...".InfoLognConsole();
                         return false;
                     }
-                    LOG.InfoFormat("Environment Variable \"RECORDEDID={0}\"", id.ToString());
+                    logger.InfoFormat("Environment Variable \"RECORDEDID={0}\"", id.ToString());
                 }
                 Console.WriteLine("Preparing for access Epgstation server.");
                 var mAccess = new EPGAccess(mySetting); 
                 mpars = mAccess.GetStreamFileObj(id);
                 if (mpars == null)
                 {
-                    Console.WriteLine("Remote file is missing or \"ID:{0}\" does not exsits.",id.ToString());
-                    LOG.Info(string.Format("Remote file is missing or \"ID:{0}\" does not exsits.", id.ToString()));
-                    Console.WriteLine("Exiting...");
-                    LOG.Info("App catch error. exiting...");
+                    "Remote file is missing or \"ID:{0}\" does not exsits.".ErrorLognConsole( id.ToString());
+                    "App catch error. exiting...".InfoLognConsole();
                     return false;
                 }
                 if (mpars.ChannelName.IsNullOrEmptyOrWhiltSpace())
@@ -135,15 +130,13 @@ namespace RVMCore
             foreach (var p in margs)
                 sb.Append(p + " ");
             PrintInfomation(mpars);
-            if (!MoveFile(mpars, mySetting))
+            if (!MoveFile(mpars, mySetting,true))
             {
-                Console.WriteLine("Local file is missing : \"File:{0}\" does not exsit.", System.IO.Path.GetFileName(mpars.FilePath));
-                LOG.Error(string.Format("Local file is missing : \"File:{0}\" does not exsit.", System.IO.Path.GetFileName(mpars.FilePath)));
-                LOG.Info("App catch error. exiting...");
-                Console.WriteLine("Exiting...");
+                "Local file is missing : \"File:{0}\" does not exsit.".ErrorLognConsole(System.IO.Path.GetFileName(mpars.FilePath));
+                "App catch error. exiting...".InfoLognConsole();
                 return false;
             };
-            LOG.Info("App has completed job. exiting...");
+            "App has completed job. exiting...".InfoLognConsole();
             return true;
         }
 
@@ -287,7 +280,7 @@ namespace RVMCore
             return mPara;
         }
 
-        private static bool MoveFile(StreamFile para,SettingObj mySetting)
+        private static bool MoveFile(StreamFile para, SettingObj mySetting, bool isEPGStation = false)
         {
             if (!System.IO.File.Exists(para.FilePath)) return false;
             string fileName = System.IO.Path.GetFileName(para.FilePath);
@@ -336,19 +329,33 @@ namespace RVMCore
                     if (!System.IO.Directory.Exists(Targetfolder))
                     {
                         System.IO.Directory.CreateDirectory(Targetfolder);
-                        LOG.Info(string.Format("Create folder: {0}", Targetfolder));
+                        logger.Info(string.Format("Create folder: {0}", Targetfolder));
                     }
                 }
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
-                para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
+                if (!isEPGStation)
+                {
+                    para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
+                }
+                else
+                {
+                    para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                }
                 OKBeep(mySetting);
             }
             else
             {
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
-                para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
+                if (!isEPGStation)
+                {
+                    para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
+                }
+                else
+                {
+                    para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                }
                 OKBeep(mySetting);
             }
             return true;
@@ -379,14 +386,14 @@ namespace RVMCore
 
             try
             {
-                LOG.Info(string.Format("Moving file to: {0}", System.IO.Path.GetDirectoryName(tar)));
+                logger.Info(string.Format("Moving file to: {0}", System.IO.Path.GetDirectoryName(tar)));
                 System.IO.File.Move(old, tar);
                 return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Error! " + e.Message);
-                LOG.Error(e.Message);
+                logger.Error(e.Message);
                 return false;
             }
         }
@@ -437,5 +444,28 @@ namespace RVMCore
             return ProgramGenre.Default;
         }
 
+        public static void InfoLognConsole(this string message)
+        {
+            logger.Info(message);
+            Console.WriteLine(message);
+        }
+
+        public static void InfoLognConsole(this string format,params object[] args)
+        {
+            logger.InfoFormat(format, args);
+            Console.WriteLine(format, args);
+        }
+
+        public static void ErrorLognConsole(this string message)
+        {
+            logger.Error(message);
+            Console.WriteLine(message);
+        }
+
+        public static void ErrorLognConsole(this string format,params object[] args)
+        {
+            logger.ErrorFormat(format, args);
+            Console.WriteLine(format, args);
+        }
     }
 }

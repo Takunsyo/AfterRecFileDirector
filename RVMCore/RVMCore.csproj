@@ -121,6 +121,7 @@
     <Compile Include="dsPlayer\Vmr9.cs" />
     <Compile Include="dsPlayer\VmRender.cs" />
     <Compile Include="EPGStationWarpper\Api\RecordList.cs" />
+    <Compile Include="EPGStationWarpper\EPGMetaFile.cs" />
     <Compile Include="EPGStationWarpper\EPGAccess.cs" />
     <Compile Include="EPGStationWarpper\Api\EPGChannel.cs" />
     <Compile Include="EPGStationWarpper\Api\EPGDefault.cs" />

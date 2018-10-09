@@ -149,7 +149,7 @@ namespace RVMCore
         private static string CheckString(this string input)
         {
             string str = input.Replace("＃", "#");
-            str = Regex.Replace(str, @"[\<|\>|\|\\\/]", x => { return Strings.StrConv(x.Value, VbStrConv.Wide); });
+            str = Regex.Replace(str, @"[\<|\>|\|\\\/:]", x => { return Strings.StrConv(x.Value, VbStrConv.Wide); });
             return Regex.Replace(str, @"(?<=[aA-zZ0-9])\s(?=[aA-zZ0-9])", " ");
         }
         private static string CheckAgain(this string input)

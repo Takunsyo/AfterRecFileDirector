@@ -179,6 +179,8 @@ namespace RVMCore
             }
             return result;
         }
+
+        public EPGStationWarpper.EPGMetaFile EPGStation { get; set; }
     }
 
 }

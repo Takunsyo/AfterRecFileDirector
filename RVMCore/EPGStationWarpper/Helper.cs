@@ -31,6 +31,7 @@ namespace RVMCore.EPGStationWarpper
             mFile.StartTime = GetTimeFromUNIXTime(body.startAt);
             mFile.EndTime = GetTimeFromUNIXTime(body.endAt);
             mFile.FilePath = System.IO.Path.Combine(mEPG.BaseFolder, System.Web.HttpUtility.UrlDecode(body.filename));
+            mFile.EPGStation = new EPGMetaFile(mEPG,  body);
             return mFile;
         }
 
@@ -89,6 +90,18 @@ namespace RVMCore.EPGStationWarpper
         public static long GetUNIXTimeFromDatetime(this DateTime time)
         {
             return (long)(time.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+        }
+
+        public static T[] AppendArray<T>(this T[] source, T[] array)
+        {
+            if (source == null & array == null) return null;
+            if (source == null) return array;
+            if (array == null) return source;
+            int ltmp = source.Length;
+            var tmp = source;
+            Array.Resize(ref tmp, ltmp + array.Length);
+            Array.Copy(array, 0, tmp, ltmp, array.Length);
+            return tmp;
         }
     }
 }
