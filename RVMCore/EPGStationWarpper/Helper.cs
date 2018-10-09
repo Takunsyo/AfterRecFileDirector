@@ -85,5 +85,10 @@ namespace RVMCore.EPGStationWarpper
             dateTime = dateTime.AddSeconds(time / 1000);
             return dateTime;
         }
+
+        public static long GetUNIXTimeFromDatetime(this DateTime time)
+        {
+            return (long)(time.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+        }
     }
 }

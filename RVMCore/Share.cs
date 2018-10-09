@@ -130,16 +130,17 @@ namespace RVMCore
             if (Regex.IsMatch(str, pet))
                 return Regex.Replace(str, pet, "").Trim().CheckAgain();
 
-            // if has no match then just find a number in single byte.
-            pet = @"[\uFF10-\uFF190-9]+.*";
-            if (Regex.IsMatch(str, pet))
-                return Regex.Replace(str, pet, "").Trim().CheckAgain();
-
             // if still has no match then just find somthing in a batch.
             SharpIndex = str.LastIndexOf("「");
             SharpIndex = SharpIndex > 0 ? SharpIndex : str.LastIndexOf("｢");
             if (SharpIndex > 0)
                 return str.Substring(0, SharpIndex).Trim().CheckAgain();
+
+            // if has no match then just find a number in single byte.
+            pet = @"[\uFF10-\uFF190-9]+.*";
+            if (Regex.IsMatch(str, pet))
+                return Regex.Replace(str, pet, "").Trim().CheckAgain();
+
             // if even a fuckin batch can't been found. just find a Number.
             // Ok, so find numbers in double bytes cherators. This may cause some problem.
             // pet = "[零一二三四五六七八九十百千萬億万亿壹貳叄肆伍陸柒捌玖拾佰仟贰叁陆]"
@@ -155,7 +156,7 @@ namespace RVMCore
         {
             string str = input;
             str = Regex.Replace(str, @"(^(\[[^\x00-\xff]\])+)|((\[[^\x00-\xff]\])+$)", "");
-            str = Regex.Replace(str, @"^(★|☆|▲|▼|▽|△|●|〇|◎)+", "");
+            str = Regex.Replace(str, @"(^(★|☆|▲|▼|▽|△|●|〇|◎)+)|((★|☆|▲|▼|▽|△|●|〇|◎)+$)", "");
             return str.Trim();
         }
             /// <summary>

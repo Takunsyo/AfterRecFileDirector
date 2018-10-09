@@ -10,7 +10,7 @@ namespace RVMCore.EPGStationWarpper.Api
     /// <summary>
     /// EPGStation api's basic response normally represent of error during process.
     /// </summary>
-    [JsonObject]
+    [System.Runtime.Serialization.DataContract]
     public class EPGDefault
     {
         public int code { get; set; }

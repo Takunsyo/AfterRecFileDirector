@@ -11,11 +11,14 @@ using Newtonsoft.Json;
 using System.Net;
 using RVMCore.EPGStationWarpper;
 using RVMCore.EPGStationWarpper.Api;
+using log4net;
 
 namespace RVMCore
 {
     public static class TVAFT
     {
+        public static ILog LOG { get; private set; }
+
         public static bool IsNullOrEmptyOrWhiltSpace(this string input)
         {
             return string.IsNullOrWhiteSpace(input);
@@ -23,6 +26,8 @@ namespace RVMCore
 
         public static bool SortFile(string[] margs)
         {
+            LOG = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            LOG.Info("App started.");
             SettingObj mySetting = null;
             bool a = false;
             while (!a)
@@ -38,10 +43,12 @@ namespace RVMCore
                 catch (Exception ex)
                 {
                     Console.WriteLine("Error : {0}", ex.Message);
+                    LOG.Error(string.Format("Fail to read settings [{0}]",ex.Message));
                     Console.WriteLine("Sleep 10 sec...");
                     System.Threading.Thread.Sleep(10000);
                 }
             }
+
             StreamFile mpars = null;
             if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))
             {
@@ -64,12 +71,43 @@ namespace RVMCore
                     else
                         sbb.AppendFormat(" {0}", p);
                 }
+                LOG.Info(string.Format("App start with parameter\"{0}\"",sbb.ToString()));
                 clPara.Add(sbb.ToString()); // Lack of the last run in the loop, so add the last parameter manuly.
-                var id = int.Parse(clPara.First(x => x.StartsWith("-id")).Substring(4));
-                Console.WriteLine("Reading to access Epgstation server.");
+                int id = -1;
+                bool t_check= false;
+                try
+                {//first see para -id 
+                    t_check = int.TryParse(clPara.First(x => x.StartsWith("-id")).Substring(4), out id);
+                }
+                catch
+                {
+                    t_check = false;
+                }
+                if (!t_check)
+                {//if -id is not working, try get enviroment variable. maybe not working.
+                    LOG.Error("parameter -id not found or not a number.");
+                    var e_id = Environment.GetEnvironmentVariable("RECORDEDID");
+                    if (!e_id.IsNullOrEmptyOrWhiltSpace()&& !int.TryParse(e_id, out id))
+                    {
+                        Console.WriteLine("Error when dealing with [ID].", id.ToString());
+                        LOG.Error("Failed to find \"RECORDEDID\" from Enviorment variable");                    
+                        Console.WriteLine("Exiting...");
+                        LOG.Info("App catch error. exiting...");
+                        return false;
+                    }
+                    LOG.InfoFormat("Environment Variable \"RECORDEDID={0}\"", id.ToString());
+                }
+                Console.WriteLine("Preparing for access Epgstation server.");
                 var mAccess = new EPGAccess(mySetting); 
                 mpars = mAccess.GetStreamFileObj(id);
-                if (mpars == null) return false;
+                if (mpars == null)
+                {
+                    Console.WriteLine("Remote file is missing or \"ID:{0}\" does not exsits.",id.ToString());
+                    LOG.Info(string.Format("Remote file is missing or \"ID:{0}\" does not exsits.", id.ToString()));
+                    Console.WriteLine("Exiting...");
+                    LOG.Info("App catch error. exiting...");
+                    return false;
+                }
                 if (mpars.ChannelName.IsNullOrEmptyOrWhiltSpace())
                 {
                     string channel = "";
@@ -97,15 +135,15 @@ namespace RVMCore
             foreach (var p in margs)
                 sb.Append(p + " ");
             PrintInfomation(mpars);
-            MoveFile(mpars,mySetting);
-            // Leave a log. Assembly.GetEntryAssembly().Location Environment.CurrentDirectory
-            string logPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Logs");
-            if (!System.IO.Directory.Exists(logPath))
-                System.IO.Directory.CreateDirectory(logPath);
-            using (System.IO.StreamWriter s = new System.IO.StreamWriter(System.IO.Path.Combine(logPath, mpars.ID.ToString() + ".log"), false))
+            if (!MoveFile(mpars, mySetting))
             {
-                s.WriteLine(sb.ToString());
-            }
+                Console.WriteLine("Local file is missing : \"File:{0}\" does not exsit.", System.IO.Path.GetFileName(mpars.FilePath));
+                LOG.Error(string.Format("Local file is missing : \"File:{0}\" does not exsit.", System.IO.Path.GetFileName(mpars.FilePath)));
+                LOG.Info("App catch error. exiting...");
+                Console.WriteLine("Exiting...");
+                return false;
+            };
+            LOG.Info("App has completed job. exiting...");
             return true;
         }
 
@@ -249,8 +287,9 @@ namespace RVMCore
             return mPara;
         }
 
-        private static void MoveFile(StreamFile para,SettingObj mySetting)
+        private static bool MoveFile(StreamFile para,SettingObj mySetting)
         {
+            if (!System.IO.File.Exists(para.FilePath)) return false;
             string fileName = System.IO.Path.GetFileName(para.FilePath);
             string[] FolderList = System.IO.Directory.GetDirectories(mySetting.StorageFolder);
             string Targetfolder = mySetting.StorageFolder;
@@ -295,33 +334,60 @@ namespace RVMCore
                     Share.RenameDirUpToDate(ref Targetfolder, para.EndTime); // Here corrects the date things.
                     Console.WriteLine("Target folder is : " + Targetfolder);
                     if (!System.IO.Directory.Exists(Targetfolder))
+                    {
                         System.IO.Directory.CreateDirectory(Targetfolder);
+                        LOG.Info(string.Format("Create folder: {0}", Targetfolder));
+                    }
                 }
-                try
-                {
-                    System.IO.File.Move(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error! " + e.Message);
-                }
+                FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
                 para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
                 OKBeep(mySetting);
             }
             else
             {
-                try
-                {
-                    System.IO.File.Move(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error! " + e.Message);
-                }
+                FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
                 para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
                 OKBeep(mySetting);
+            }
+            return true;
+        }
+
+        private static bool FileMovier(string old , string tar)
+        {
+            bool check = false;
+            do
+            {
+                System.IO.FileStream stream = null;
+                try
+                {
+                    stream = System.IO.File.Open(old, System.IO.FileMode.Open, System.IO.FileAccess.Read);
+                    check = true;
+                }
+                catch (System.IO.IOException)
+                {
+                    check = false;
+                    System.Threading.Thread.Sleep(200);
+                }
+                finally
+                {
+                    if (stream != null)
+                        stream.Close();
+                }
+            } while (!check);
+
+            try
+            {
+                LOG.Info(string.Format("Moving file to: {0}", System.IO.Path.GetDirectoryName(tar)));
+                System.IO.File.Move(old, tar);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error! " + e.Message);
+                LOG.Error(e.Message);
+                return false;
             }
         }
 

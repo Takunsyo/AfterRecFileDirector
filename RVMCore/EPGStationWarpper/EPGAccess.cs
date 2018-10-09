@@ -51,11 +51,13 @@ namespace RVMCore.EPGStationWarpper
             try
             {
                 Console.WriteLine("curl -X GET \"{0}\" -H \"accept: application/json\"",req.RequestUri);
+                TVAFT.LOG.Info(string.Format("curl -X GET \"{0}\" -H \"accept: application/json\"", req.RequestUri));
                 resp = (HttpWebResponse)req.GetResponse();
             }
             catch(WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
+                TVAFT.LOG.Error(string.Format("Network[{0}]",ex.Message));
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -64,6 +66,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
+                TVAFT.LOG.Info(string.Format("Receive data[Length:{0}]", cLen));
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
@@ -123,11 +126,13 @@ namespace RVMCore.EPGStationWarpper
             try
             {
                 Console.WriteLine("curl -X GET \"{0}\" -H \"accept: application/json\"", req.RequestUri);
+                TVAFT.LOG.Info(string.Format("curl -X GET \"{0}\" -H \"accept: application/json\"", req.RequestUri));
                 resp = (HttpWebResponse)req.GetResponse();
             }
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
+                TVAFT.LOG.Error(string.Format("Network[{0}]", ex.Message));
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -136,6 +141,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
+                TVAFT.LOG.Info(string.Format("Receive data[Length:{0}]", cLen));
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
@@ -163,11 +169,13 @@ namespace RVMCore.EPGStationWarpper
             try
             {
                 Console.WriteLine("curl -X GET \"{0}\" -H \"accept: image/jpg\"", req.RequestUri);
+                TVAFT.LOG.Info(string.Format("curl -X GET \"{0}\" -H \"accept: image/jpg\"", req.RequestUri));
                 resp = (HttpWebResponse)req.GetResponse();
             }
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
+                TVAFT.LOG.Error(string.Format("Network[{0}]", ex.Message));
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -175,6 +183,7 @@ namespace RVMCore.EPGStationWarpper
             {
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
+                TVAFT.LOG.Info(string.Format("Receive data[Length:{0}]", cLen));
                 length = int.Parse(cLen);
                 return Image.FromStream(st);
             }
@@ -213,11 +222,13 @@ namespace RVMCore.EPGStationWarpper
             try
             {
                 Console.WriteLine("curl -X GET \"{0}\" -H \"accept: application/json\"", req.RequestUri);
+                TVAFT.LOG.Info(string.Format("curl -X GET \"{0}\" -H \"accept: application/json\"", req.RequestUri));
                 resp = (HttpWebResponse)req.GetResponse();
             }
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
+                TVAFT.LOG.Error(string.Format("Network[{0}]", ex.Message));
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -226,6 +237,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
+                TVAFT.LOG.Info(string.Format("Receive data[Length:{0}]", cLen));
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
@@ -263,11 +275,13 @@ namespace RVMCore.EPGStationWarpper
             try
             {
                 Console.WriteLine("curl -X GET \"{0}\" -H \"accept: image/png\"", req.RequestUri);
+                TVAFT.LOG.Info(string.Format("curl -X GET \"{0}\" -H \"accept: image/png\"", req.RequestUri));
                 resp = (HttpWebResponse)req.GetResponse();
             }
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
+                TVAFT.LOG.Error(string.Format("Network[{0}]", ex.Message));
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -276,6 +290,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
+                TVAFT.LOG.Info(string.Format("Receive data[Length:{0}]", cLen));
                 length = int.Parse(cLen);
                 //st.Position = 0;
                 return Image.FromStream(st);

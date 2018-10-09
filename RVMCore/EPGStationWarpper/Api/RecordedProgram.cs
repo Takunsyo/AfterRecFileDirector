@@ -12,7 +12,7 @@ namespace RVMCore.EPGStationWarpper.Api
     /// EPGStation API
     /// 'server addr'/recorded/{id}
     /// </summary>
-    [JsonObject]
+    [DataContract]
     public class RecordedProgram : EPGDefault
     {
         [DataMember]
@@ -81,5 +81,16 @@ namespace RVMCore.EPGStationWarpper.Api
         public string filename  { get; set; }
         public dynamic encoded { get; set; } //not needed
         public dynamic encoding { get; set; }//not needed
+
+        public byte[] Serialize()
+        {
+            var jStr=JsonConvert.SerializeObject(this);
+            return System.Text.Encoding.UTF8.GetBytes(jStr);
+        }
+        public static RecordedProgram Deserialize(byte[] data)
+        {
+            var jStr = System.Text.Encoding.UTF8.GetString(data);
+            return JsonConvert.DeserializeObject<RecordedProgram>(jStr);
+        }
     }
 }
