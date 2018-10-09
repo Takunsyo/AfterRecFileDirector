@@ -20,7 +20,7 @@ namespace RVMCoreTest
             InitializeComponent();
 
             //load epgstation 
-            //mainAccess = new EPGAccess("laoxiaoms", "76151319", "192.168.0.2:40888", "");
+            mainAccess = new EPGAccess("laoxiaoms", "76151319", "192.168.0.2:40888", "");
             //var c_list = mainAccess.GetRecordedPrograms();
             //listBox1.DisplayMember = "name";
             //listBox1.DataSource = c_list;
@@ -33,6 +33,10 @@ namespace RVMCoreTest
             RVMCore.TVAFT.SortFile(margs);
             //MessageBox.Show(RVMCore.Share.FindTitle(textBox1.Text));
             //MessageBox.Show(RVMCore.Share.GetTimeSpan(DateTime.Now, DateTime.Now.AddMonths(-1)));
+
+            //var tmp = mainAccess.GetRecordProgramByID(24).Serialize();
+            //var tmp2 = RecordedProgram.Deserialize(tmp);
+            //MessageBox.Show(tmp.Length.ToString() + tmp2.name);
         }
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
