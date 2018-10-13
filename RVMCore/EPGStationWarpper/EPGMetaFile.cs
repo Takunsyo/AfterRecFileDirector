@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace RVMCore.EPGStationWarpper
 {
@@ -26,7 +27,7 @@ namespace RVMCore.EPGStationWarpper
         public Image Logo {
             get
             {
-                using (System.IO.MemoryStream st = new System.IO.MemoryStream())
+                using (MemoryStream st = new MemoryStream())
                 {
                     if(mLogo ==null || mLogo.Length <=0) return null;
                     st.Write(mLogo, 0, mLogo.Length);
@@ -41,7 +42,7 @@ namespace RVMCore.EPGStationWarpper
         {
             get
             {
-                using (System.IO.MemoryStream st = new System.IO.MemoryStream())
+                using (MemoryStream st = new MemoryStream())
                 {
                     if (mThumb == null || mThumb.Length <= 0) return null;
                     st.Write(mThumb, 0, mThumb.Length);
@@ -126,13 +127,18 @@ namespace RVMCore.EPGStationWarpper
             return rep;
         }
 
+        /// <summary>
+        /// Write ".meta" file.
+        /// </summary>
+        /// <param name="path">full file path</param>
+        /// <returns></returns>
         public bool WtiteFile(string path)
         {
-            path = path.ToLower().EndsWith(".meta") ? path : path + ".meta";
+            path = Path.GetExtension(path).ToLower()==(".meta") ? path : Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path)+".meta");
             try { 
-                if (System.IO.File.Exists(path))
+                if (File.Exists(path))
                 {
-                    System.IO.File.Move(path, path + ".old");
+                    File.Move(path, path + ".old");
                 }
             }
             catch
@@ -142,12 +148,12 @@ namespace RVMCore.EPGStationWarpper
             }
             try
             { 
-            using (System.IO.FileStream sw = new System.IO.FileStream(path,System.IO.FileMode.OpenOrCreate,System.IO.FileAccess.ReadWrite))
+            using (FileStream sw = new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite))
             {
                 var tmp = this.GetBytes();
                 sw.Write(tmp,0,tmp.Length);
             }
-            System.IO.File.SetAttributes(path, System.IO.File.GetAttributes(path) | System.IO.FileAttributes.Hidden);
+            File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.Hidden);
             return true;
             }
             catch(Exception ex)
@@ -158,10 +164,15 @@ namespace RVMCore.EPGStationWarpper
             }
         }
 
+        /// <summary>
+        /// Read ".meta" file to <see cref="EPGMetaFile"/> object.
+        /// </summary>
+        /// <param name="path">full file path.</param>
+        /// <returns></returns>
         public static EPGMetaFile ReadFile(string path)
         {
-            if (System.IO.File.Exists(path)) { 
-                using (System.IO.FileStream ssr = new System.IO.FileStream(path, System.IO.FileMode.Open, System.IO.FileAccess.Read))
+            if (File.Exists(path)) { 
+                using (FileStream ssr = new FileStream(path, FileMode.Open, FileAccess.Read))
                 {
                     long len = ssr.Length;
                     byte[] tmp = new byte[len];

@@ -61,12 +61,15 @@
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -74,6 +77,7 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Serialization" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="dsPlayer\amstream.cs" />
@@ -127,14 +131,17 @@
     <Compile Include="EPGStationWarpper\Api\EPGDefault.cs" />
     <Compile Include="EPGStationWarpper\Api\RecordedProgram.cs" />
     <Compile Include="EPGStationWarpper\Helper.cs" />
+    <Compile Include="Forms\Uploader.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Google\GoogleDrive.cs" />
-    <Compile Include="Google\GoogleFile.cs" />
-    <Compile Include="Google\GoogleFolder.cs" />
-    <Compile Include="Google\IGoogleDriveObject.cs" />
-    <Compile Include="Google\MetaInfo.cs" />
+    <Compile Include="Forms\MetaInfoView.xaml.cs">
+      <DependentUpon>MetaInfoView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GoogleWarpper\GoogleDrive.cs" />
+    <Compile Include="GoogleWarpper\MetaInfo.cs" />
     <Compile Include="MediaPlayer.cs" />
     <Compile Include="SettingObj.cs" />
     <Compile Include="ProgramGenre.cs" />
@@ -147,6 +154,9 @@
     <Compile Include="TVRockAFT.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Forms\Uploader.resx">
+      <DependentUpon>Uploader.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\FormMain.resx">
       <DependentUpon>FormMain.cs</DependentUpon>
     </EmbeddedResource>
@@ -162,6 +172,12 @@
     <Content Include="Log4net.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Forms\MetaInfoView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Fody.3.1.3\build\Fody.targets" Condition="Exists('..\packages\Fody.3.1.3\build\Fody.targets')" />

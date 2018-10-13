@@ -47,7 +47,7 @@ namespace RVMCore
                     System.Threading.Thread.Sleep(10000);
                 }
             }
-
+            EPGAccess mAccess = null;
             StreamFile mpars = null;
             if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))
             {
@@ -95,7 +95,7 @@ namespace RVMCore
                     logger.InfoFormat("Environment Variable \"RECORDEDID={0}\"", id.ToString());
                 }
                 Console.WriteLine("Preparing for access Epgstation server.");
-                var mAccess = new EPGAccess(mySetting); 
+                mAccess = new EPGAccess(mySetting); 
                 mpars = mAccess.GetStreamFileObj(id);
                 if (mpars == null)
                 {
@@ -130,7 +130,7 @@ namespace RVMCore
             foreach (var p in margs)
                 sb.Append(p + " ");
             PrintInfomation(mpars);
-            if (!MoveFile(mpars, mySetting,true))
+            if (!MoveFile(mpars, mySetting,mAccess))
             {
                 "Local file is missing : \"File:{0}\" does not exsit.".ErrorLognConsole(System.IO.Path.GetFileName(mpars.FilePath));
                 "App catch error. exiting...".InfoLognConsole();
@@ -280,7 +280,7 @@ namespace RVMCore
             return mPara;
         }
 
-        private static bool MoveFile(StreamFile para, SettingObj mySetting, bool isEPGStation = false)
+        private static bool MoveFile(StreamFile para, SettingObj mySetting,EPGAccess epgAccess = null)
         {
             if (!System.IO.File.Exists(para.FilePath)) return false;
             string fileName = System.IO.Path.GetFileName(para.FilePath);
@@ -334,13 +334,14 @@ namespace RVMCore
                 }
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
-                if (!isEPGStation)
+                if (epgAccess == null)
                 {
                     para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
                 }
                 else
                 {
-                    para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                    var tmp = para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                    if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
                 OKBeep(mySetting);
             }
@@ -348,13 +349,14 @@ namespace RVMCore
             {
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
-                if (!isEPGStation)
+                if (epgAccess==null )
                 {
                     para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
                 }
                 else
                 {
-                    para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                    var tmp = para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
+                    if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
                 OKBeep(mySetting);
             }

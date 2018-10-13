@@ -151,7 +151,7 @@ namespace RVMCore.EPGStationWarpper
         /// Get recorded program's thumbnail image from EPGStation by id.
         /// <para>EPGStation api "/recorded/{id}/thumbnail"</para>
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="id">Record ID</param>
         /// <param name="length">in case you need a length of the image.</param>
         /// <returns></returns>
         public Image GetRecordedThumbnailByID(int id,out int length)
@@ -189,7 +189,7 @@ namespace RVMCore.EPGStationWarpper
         /// Get recorded program's thumbnail image from EPGStation by id.
         /// <para>EPGStation api "/recorded/{id}/thumbnail"</para>
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="id">Record ID</param>
         /// <param name="length">in case you need a length of the image.</param>
         /// <returns></returns>
         public byte[] GetRecordedThumbnailBytesByID(int id)
@@ -227,12 +227,57 @@ namespace RVMCore.EPGStationWarpper
         /// Get recorded program's thumbnail image from EPGStation by id.
         /// <para>EPGStation api "/recorded/{id}/thumbnail"</para>
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="id">Record ID</param>
         /// <returns></returns> 
         public Image GetRecordedThumbnailByID(int id)
         {
             int length = 0;
             return this.GetRecordedThumbnailByID(id, out length);
+        }
+        /// <summary>
+        /// Remove Recorded program from server (and local?).
+        /// </summary>
+        /// <param name="id">Record ID</param>
+        /// <returns>return <see cref="true"/> when success.</returns>
+        public bool DeleteRecordByID(int id)
+        {
+            if (id <= 0) return false;
+            string EPGATTR = "http://{1}/api/recorded/{0}";
+            System.Net.HttpWebRequest req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(string.Format(EPGATTR, id.ToString(), this.ServiceAddr));
+            req.Method = "DELETE";
+            req.Credentials = this.EPGCredential;
+            HttpWebResponse resp = null;
+            try
+            {
+                "curl -X DELETE \"{0}\" -H \"accept: application/json\"".InfoLognConsole(req.RequestUri);
+                resp = (HttpWebResponse)req.GetResponse();
+            }
+            catch (WebException ex)
+            {
+                "Network[{0}]".ErrorLognConsole( ex.Message);
+                resp = (HttpWebResponse)ex.Response;
+            }
+            switch (resp.StatusCode)
+            {
+                case HttpStatusCode.OK:
+                    "Successfully removed record [RECORDID={0}]".InfoLognConsole(id);
+                    return true;
+                case HttpStatusCode.Conflict:
+                    "Unable to remove record : targer record is not streaming.".ErrorLognConsole();
+                    return false;
+                default:
+                    using (System.IO.Stream st = resp.GetResponseStream())
+                    {
+                        var cLen = resp.Headers.Get("content-length");
+                        if (string.IsNullOrWhiteSpace(cLen)) return false;
+                        byte[] buffer = new byte[int.Parse(cLen)];
+                        st.ReadAsync(buffer, 0, int.Parse(cLen));
+                        string json = System.Text.Encoding.UTF8.GetString(buffer);
+                        var tmp = JsonConvert.DeserializeObject<EPGDefault>(json);
+                        tmp.errors.InfoLognConsole();
+                    }
+                    return false;
+            }
         }
         #endregion
 
