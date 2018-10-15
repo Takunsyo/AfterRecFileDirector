@@ -23,7 +23,7 @@ namespace RVMCore
         {
             return string.IsNullOrWhiteSpace(input);
         }
-
+        
         public static bool SortFile(string[] margs)
         {
             logger.Info("App started.");
@@ -49,6 +49,15 @@ namespace RVMCore
             }
             EPGAccess mAccess = null;
             StreamFile mpars = null;
+            if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
+            {
+                var GoogleService = new GoogleWarpper.GoogleDrive();
+                if(new Forms.Uploader(GoogleService).ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    return true;
+                }
+                return false;
+            }
             if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))
             {
                 Console.WriteLine("-=-=-=-=-=-=-=-=-=-=-=EPGstation=-=-=-=-=-=-=-=-=-=-=-");

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
 
 namespace RVMCore.Forms
 {
@@ -39,11 +40,13 @@ namespace RVMCore.Forms
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Uploader));
-            this.pbAll = new System.Windows.Forms.ProgressBar();
+            this.pbAll = new RVMCore.Forms.ProgressBarKai();
             this.upLoadList = new System.Windows.Forms.ListBox();
-            this.pbCurrent = new System.Windows.Forms.ProgressBar();
+            this.pbCurrent = new RVMCore.Forms.ProgressBarKai();
             this.lStatus = new System.Windows.Forms.Label();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.btn_Open = new System.Windows.Forms.Button();
+            this.btn_StartPause = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // pbAll
@@ -88,12 +91,32 @@ namespace RVMCore.Forms
             this.btnCancel.Text = "Cancel";
             this.btnCancel.UseVisualStyleBackColor = true;
             // 
+            // btn_Open
+            // 
+            this.btn_Open.Location = new System.Drawing.Point(14, 206);
+            this.btn_Open.Name = "btn_Open";
+            this.btn_Open.Size = new System.Drawing.Size(75, 23);
+            this.btn_Open.TabIndex = 5;
+            this.btn_Open.Text = "Open Files";
+            this.btn_Open.UseVisualStyleBackColor = true;
+            // 
+            // btn_StartPause
+            // 
+            this.btn_StartPause.Location = new System.Drawing.Point(317, 208);
+            this.btn_StartPause.Name = "btn_StartPause";
+            this.btn_StartPause.Size = new System.Drawing.Size(75, 23);
+            this.btn_StartPause.TabIndex = 6;
+            this.btn_StartPause.Text = "Start";
+            this.btn_StartPause.UseVisualStyleBackColor = true;
+            // 
             // Uploader
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.btnCancel;
             this.ClientSize = new System.Drawing.Size(485, 241);
+            this.Controls.Add(this.btn_StartPause);
+            this.Controls.Add(this.btn_Open);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.lStatus);
             this.Controls.Add(this.pbCurrent);
@@ -108,26 +131,81 @@ namespace RVMCore.Forms
             this.ResumeLayout(false);
 
         }
-
-        #endregion
-
-
-        private ProgressBar pbAll;
+        private ProgressBarKai pbAll;
         private ListBox upLoadList;
-        private ProgressBar pbCurrent;
+        private ProgressBarKai pbCurrent;
         private Label lStatus;
         private Button btnCancel;
-        private GoogleWarpper.GoogleDrive Service;
-
-        public Uploader()
+        #endregion
+        
+        private GoogleWarpper.GoogleDrive mService;
+        private List<UploadFiles> mFiles;
+        private Button btn_Open;
+        private Button btn_StartPause;
+        private DateTime tmpTime;
+        public Uploader(GoogleWarpper.GoogleDrive serv)
         {
             InitializeComponent();
-            Service = new GoogleWarpper.GoogleDrive();
+            this.mService = serv;
+            mFiles = new List<UploadFiles>();
         }
 
         private void Uploader_Load(object sender, EventArgs e)
         {
-
+            this.pbCurrent.Font = this.Font;
+            mService.UpdateProgressChanged += new RVMCore.GoogleWarpper.UpdateProgress((long value, long maxmum, int y) => {
+                if (this.pbCurrent.InvokeRequired)
+                {
+                    Action act = new Action(() => {
+                        if (value >= 0 && maxmum > 0)
+                        {
+                            this.pbCurrent.Style = ProgressBarStyle.Continuous;
+                            this.pbCurrent.Maximum = (maxmum > int.MaxValue) ? (int)(maxmum / 2) : (int)maxmum;
+                            this.pbCurrent.Value = (maxmum > int.MaxValue) ? (int)(value / 2) : (int)value;
+                            this.pbCurrent.Text= "[" + getSizeString(value) + "/" + getSizeString(maxmum) + "]" + getSizeString(y) + "/s";
+                        }
+                    });
+                    this.pbCurrent.Invoke(act);
+                }
+                if (this.lStatus.InvokeRequired)
+                {
+                    Action act = new Action(() => {
+                        this.lStatus.Text = "[" + getSizeString(value) + "/" + getSizeString(maxmum) + "]" + getSizeString(y) + "/s";
+                    });
+                    this.lStatus.Invoke(act);
+                }
+            });
         }
+
+        [JsonObject]
+        private struct UploadFiles
+        {
+            public string Name;
+            public string FullPath;
+            public bool isUploaded;
+        }
+
+        private string getSizeString(long size)
+        {
+            string tmp = "";
+            if (size > 1024 * 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
+            }
+            else if (size > 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
+            }
+            else if (size > 1024)
+            {
+                tmp = ((float)size / 1024).ToString("F2") + " Kb";
+            }
+            else
+            {
+                tmp = (size).ToString() + " Byte";
+            }
+            return tmp;
+        }
+
     }
 }

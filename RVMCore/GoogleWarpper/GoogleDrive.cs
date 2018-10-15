@@ -16,9 +16,9 @@ using System.Security.Cryptography;
 
 namespace RVMCore.GoogleWarpper
 {
-    public delegate void UpdateProgress(int nowByte, int byteCount, int speed);
+    public delegate void UpdateProgress(long nowByte, long byteCount, int speed);
 
-    public class GoogleDrive
+    public class GoogleDrive:IDisposable
     {
         static string[] Scopes = { DriveService.Scope.Drive };
         static string ApplicationName = "After Record File Upload Service";
@@ -31,6 +31,28 @@ namespace RVMCore.GoogleWarpper
         public DriveService Service { get; private set; }
 
         public Google.Apis.Drive.v3.Data.File Root { get; private set; }
+
+        private ulong _MaxBytesPerSecond=0;
+        /// <summary>
+        /// Speed control, Acceptable minimum value is 256*1024. if disable speed control set value to 0.
+        /// </summary>
+        public ulong MaxBytesPerSecond {
+            get
+            {
+                return _MaxBytesPerSecond;
+            }
+            set
+            {
+                if(value < 256 * 1024 && value !=0)
+                {
+                    this._MaxBytesPerSecond = 256 * 1024;
+                }
+                else
+                {
+                    this._MaxBytesPerSecond = value;
+                }
+            }
+        }
 
         private class Credential
         {
@@ -74,6 +96,16 @@ namespace RVMCore.GoogleWarpper
             }
 
         }
+
+        //private struct FolderStrucrt
+        //{
+        //    public string Name;
+        //    public string ID;
+        //    public File Body;
+        //    public IEnumerable<FolderStrucrt> Childs;
+        //}
+
+        //private FolderStrucrt mRoot;
 
         /// <summary>
         /// Initialize a new instance of <see cref="GoogleDrive"/>.
@@ -283,12 +315,19 @@ namespace RVMCore.GoogleWarpper
         public bool RemoteFileExists(string fullFilePath, IEnumerable<string> parentID)
         {
             if (parentID == null) parentID = new string[] { "root" };
-            if (!System.IO.File.Exists(fullFilePath)) return false; 
+            if (!System.IO.File.Exists(fullFilePath)) return false;
             //getMD5Checksum
-            string mMD5 = CalculateMD5(fullFilePath);
+            string mMD5 = null;
+            Thread tgMD5 = new Thread(new ThreadStart(()=> { mMD5 = CalculateMD5(fullFilePath);}));
+            tgMD5.Start();
             string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
             var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", fileNameWithExtension.CheckStringForQuerry(), parentID.First());
-            if (fList == null) return false;
+            if (fList == null && fList.Count() ==0)
+            {
+                if (tgMD5.IsAlive) tgMD5.Abort();
+                return false;
+            }
+            if (tgMD5.IsAlive) tgMD5.Join();
             foreach (File i in fList)
             {
                 if(i.Md5Checksum == mMD5)return true;
@@ -342,14 +381,12 @@ namespace RVMCore.GoogleWarpper
         {
             return await Task.Run(() => this.RemoteFileExists(fullFilePath, remotePath));
         }
-
-
-
-
+        
         /// <summary>
         /// Will be called when Upload or Download has a progress updated.
         /// </summary>
         public event UpdateProgress UpdateProgressChanged;
+
         /// <summary>
         /// Make a resumable upload request in the Google Drive API.
         /// </summary>
@@ -378,11 +415,19 @@ namespace RVMCore.GoogleWarpper
                     }
                     int chunkSize = 256*1024;
                     long byteCnt = -1;
-                    Stopwatch mWatch ;
-                    while (sr.Length!= sr.Position)
+                    Stopwatch mWatch = new Stopwatch(); ;
+                    Stopwatch SpeedControl = null;
+                    bool EnableSpeedControl = false;
+                    if (this.MaxBytesPerSecond != 0) { 
+                        SpeedControl = new Stopwatch();
+                        SpeedControl.Start();
+                        EnableSpeedControl = true;
+                    }
+                    List<int> evaSpeed = new List<int>();
+                    long spdCnt = 0;
+                    while (sr.Length != sr.Position)
                     {//Start upload process
-                        mWatch = new Stopwatch();
-                        mWatch.Start();
+                        mWatch.Restart();
                         var req = InitHttpWebRequest(rmuri);
                         req.Method = "PUT";
                         int counter = 0;
@@ -399,12 +444,20 @@ namespace RVMCore.GoogleWarpper
                             if (counter <= 0) break;
                             req.ContentLength = counter;
                             req.Headers.Add("Content-Range", string.Format("bytes {0}-{1}/{2}", byteCnt, byteCnt + counter - 1, sr.Length));
-                        }                        
-                        using (System.IO.Stream reqStream = req.GetRequestStream())
-                        {                            
-                            reqStream.Write(tmp, 0, counter);
                         }
-                        
+                        req.Timeout=(5000);
+                        try { 
+                            using (System.IO.Stream reqStream = req.GetRequestStream())
+                            {
+                                reqStream.Write(tmp, 0, counter);
+                            }
+                        }catch(WebException ex)
+                        {
+                            ex.Message.ErrorLognConsole();
+                            "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
+                            sr.Position -= counter;
+                            continue;
+                        }
                         HttpWebResponse rep;
                         try //upload.
                         {
@@ -413,6 +466,12 @@ namespace RVMCore.GoogleWarpper
                         catch (WebException ex)
                         {
                             rep = (HttpWebResponse)ex.Response;
+                        }
+                        if (req == null)
+                        {
+                            "Local Error! [File:{0}]".InfoLognConsole(localPath);
+                            sr.Position -= counter;
+                            continue;
                         }
                         //Handle server responses.
                         switch ((int)rep.StatusCode)
@@ -427,26 +486,21 @@ namespace RVMCore.GoogleWarpper
                                 {
                                     msp = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
                                 }
-                                if (sr.Length > int.MaxValue)
-                                {
-                                    UpdateProgressChanged((int)(byteCnt / 2), (int)(sr.Length / 2), msp);
-                                }
-                                else
-                                {
-                                    UpdateProgressChanged((int)byteCnt, (int)sr.Length, msp);
-                                }
+                                evaSpeed.Add(msp);
+                                if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
+                                UpdateProgressChanged.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
                                 break;
                             case 500:
                             case 502:
                             case 503:
                             case 504:
-                                "Catch server error. Chunk[{1}/{2}] File:[{0}]".InfoLognConsole(localPath,byteCnt,sr.Length);
+                                "Catch server error. Chunk[{1}/{2}] File:[{0}]".InfoLognConsole(localPath, byteCnt, sr.Length);
                                 sr.Position -= counter;
                                 //Server Errors retry current chunk
                                 break;
                             case 403:
                                 //Reached rate limit. suspend a few time then countinue.
-                                "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath,1000);
+                                "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
                                 sr.Position -= counter;
                                 Thread.Sleep(1000);
                                 break;
@@ -458,16 +512,17 @@ namespace RVMCore.GoogleWarpper
                                 //Session has closed by server, restart upload from zero.
                                 break;
                             case 308:
-                                Console.WriteLine("Chunk[{0}/{1}] Success!", sr.Length);
+                                Console.WriteLine("Chunk[{0}/{1}] Success!", byteCnt, sr.Length);
                                 string hd = rep.Headers.Get("Range");
                                 if (hd.IsNullOrEmptyOrWhiltSpace())
                                 {
                                     byteCnt = 0;
                                 }
-                                else { 
+                                else
+                                {
                                     hd = hd.Replace("bytes=", "");
                                     var itmp = hd.Split('-');
-                                    if(itmp != null && itmp.Count() == 2)
+                                    if (itmp != null && itmp.Count() == 2)
                                     {
                                         long.TryParse(itmp[1], out byteCnt);
                                         byteCnt += 1;
@@ -488,22 +543,29 @@ namespace RVMCore.GoogleWarpper
                                 return null;
                                 //Other message maybe Errors.
                         }
-
+                        if (EnableSpeedControl) { 
+                            spdCnt += counter;
+                            if (spdCnt >= (long)this.MaxBytesPerSecond)
+                            {
+                                if (SpeedControl.ElapsedMilliseconds < 1000)
+                                {
+                                    Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                                }
+                                spdCnt = 0;
+                                SpeedControl.Restart();
+                            }
+                        }
                         mWatch.Stop();
                         int speed = 0;
                         if (counter != 0)
                         {
                             speed = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
                         }
-                        if(sr.Length > int.MaxValue)
-                        {
-                            UpdateProgressChanged((int)(byteCnt/2), (int)(sr.Length/2), speed);
-                        }
-                        else
-                        {
-                            UpdateProgressChanged((int)byteCnt, (int)sr.Length, speed);
-                        }
+                        evaSpeed.Add(speed);
+                        if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
+                        UpdateProgressChanged.Invoke(byteCnt, sr.Length, (int)evaSpeed.Average());
                     }
+                    SpeedControl.Stop();
                 }
                 else
                 {   //This is the first time tring to oupload this file.
@@ -529,7 +591,7 @@ namespace RVMCore.GoogleWarpper
                 }
             }
             FilesResource.ListRequest request = Service.Files.List();
-            request.Q = string.Format("'{0}' in parents and name=''", GetGoogleFolderByPath(remotePath).Id, System.IO.Path.GetFileName(localPath));
+            request.Q = string.Format("'{0}' in parents and name contains '{1}'", GetGoogleFolderByPath(remotePath).Id, System.IO.Path.GetFileName(localPath).CheckStringForQuerry());
             FileList result = request.Execute();
             if (result.Files.Count > 0)
                 return result.Files[0];
@@ -556,7 +618,7 @@ namespace RVMCore.GoogleWarpper
             return req;
         }
 
-        private string GetUploadStatusPath(string filePath)
+        public string GetUploadStatusPath(string filePath)
         {
             return System.IO.Path.GetExtension(filePath).ToLower() ==".upload" ? 
                 filePath : 
@@ -573,6 +635,11 @@ namespace RVMCore.GoogleWarpper
                     return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            ((IDisposable)Service).Dispose();
         }
     }
 }

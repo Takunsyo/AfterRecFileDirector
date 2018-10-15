@@ -131,6 +131,9 @@
     <Compile Include="EPGStationWarpper\Api\EPGDefault.cs" />
     <Compile Include="EPGStationWarpper\Api\RecordedProgram.cs" />
     <Compile Include="EPGStationWarpper\Helper.cs" />
+    <Compile Include="Forms\ProgressBarKai.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Forms\Uploader.cs">
       <SubType>Form</SubType>
     </Compile>
