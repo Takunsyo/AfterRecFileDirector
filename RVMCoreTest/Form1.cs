@@ -1,9 +1,11 @@
 ﻿using RVMCore.EPGStationWarpper;
 using RVMCore.EPGStationWarpper.Api;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -25,51 +27,19 @@ namespace RVMCoreTest
             //listBox1.DisplayMember = "name";
             //listBox1.DataSource = c_list;
             //pictureBox1.SizeMode = PictureBoxSizeMode.AutoSize;
+            this.MaximizeBox = false;
+
+            updateList();
         }
         RVMCore.GoogleWarpper.GoogleDrive mService = new RVMCore.GoogleWarpper.GoogleDrive();
 
+        //Only for upload
+        List<UploadFile> fList = new List<UploadFile>();
         System.Threading.Thread mThread;
+        BindingSource listBox1Soucrce = new BindingSource();
+        Stopwatch TimeOutWatch = new Stopwatch();
         private void button1_Click(object sender, EventArgs e)
         {
-            //string[] margs = textBox1.Text.Split(' ');
-            //RVMCore.TVAFT.SortFile(margs);
-            //MessageBox.Show(RVMCore.Share.FindTitle(textBox1.Text));
-            //MessageBox.Show(RVMCore.Share.GetTimeSpan(DateTime.Now, DateTime.Now.AddMonths(-1)));
-
-            //var tmp = mainAccess.GetRecordProgramByID(24).Serialize();
-            //var tmp2 = RecordedProgram.Deserialize(tmp);
-            //MessageBox.Show(tmp.Length.ToString() + tmp2.name);
-
-            //var main = new EPGMetaFile(this.mainAccess, 62);
-            //var tmp = main.GetBytes();
-            //if (!main.WtiteFile(@"E:\tmp.meta")) return;
-            //var tmp2 = EPGMetaFile.ReadFile(@"E:\tmp.meta");
-            //MessageBox.Show(tmp2.Meta.name);
-            //pictureBox1.Image = tmp2.ThumbImage;
-            //pictureBox2.Image = tmp2.Logo;
-            //string path = @"E:\tmp\tmp.meta";
-            //MessageBox.Show(System.IO.Path.GetExtension(path).ToLower() == (".meta") ? path : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path), System.IO.Path.GetFileNameWithoutExtension(path) + ".meta"));
-            //mainAccess.DeleteRecordByID(65);
-
-            //Google get folder list
-
-            //var i = mService.GetGoogleFolderByID(mService.Root.Id);
-            ////var root = m_root.Execute();
-            ////MessageBox.Show(root.Name + "\n" + root.Id);
-            ////var fList = mService.Service.Files.List();
-            ////fList.Q = "mimeType='application/vnd.google-apps.folder' and trashed=false and 'me' in owners";
-            //////fList.Q = "'root' in ";
-            ////fList.Spaces = "drive";
-            ////fList.Fields = "files(id, name, parents)";
-            ////fList.SupportsTeamDrives = false;
-            //////var rep =fList.Execute();
-            ////foreach(Google.Apis.Drive.v3.Data.File i in rep.Files)
-            ////{
-            //    MessageBox.Show(i.Name + "\n ID=" + i.Id + "\n Type=" + i.MimeType + "\n Parents: \n" + getStr(i.Parents));
-            //}
-
-            //string local = @"E:\1[アニメ類]\[Q4'18,Q4'18]宇宙戦艦ティラミスⅡ\[20181009]ＴＯＫＹＯ　ＭＸ１[宇宙戦艦ティラミスⅡ #2「REUNION／NEO UNIVERSE…」][lxsrc].ts";
-            List<string> fList = new List<string>();
             using (var mdlg = new OpenFileDialog())
             {
                 mdlg.CheckFileExists = true;
@@ -78,7 +48,10 @@ namespace RVMCoreTest
                 mdlg.Multiselect = true;
                 if (mdlg.ShowDialog() == DialogResult.OK)
                 {
-                    fList.AddRange( mdlg.FileNames);
+                    foreach(string i in mdlg.FileNames)
+                    {
+                        if(!fList.Any(x=>x==i))fList.Add(i);
+                    }
                 }
                 else return;
             }
@@ -88,28 +61,63 @@ namespace RVMCoreTest
             //MessageBox.Show(exi.ToString());
             System.Threading.ThreadStart work = new System.Threading.ThreadStart(() =>
             {
-                foreach(string local in fList) { 
-                    string remot = System.IO.Path.GetDirectoryName(local).Replace(System.IO.Path.GetPathRoot(local), @"\EPGRecords\");
-                    this.Invoke(new Action(() => {
-                        this.Text = "[Uploading]" + System.IO.Path.GetFileName(local);
+                do
+                {
+                    UploadFile local = null;
+                    try
+                    {
+                        local = fList.First(x => !x.IsOver);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+                    int index = fList.FindIndex(x=> x==local);
+                    if (local == null) return;
+                    string remot = local.RemotePath;
+                    this.Invoke(new Action(() =>
+                    {
+                        this.Text = "[Uploading]" + local.FileName;
                         this.textBox1.Text = local;
                         this.textBox1.ReadOnly = true;
-                        button1.Enabled = false;
-                        lStatus.Text = "Initialize upload (MD5 File Checking...)";
+                        //button1.Enabled = false;
+                        this.progressBar1.Text = "Initialize upload (MD5 File Checking...)";
                         this.progressBar1.Value = 0;
                         this.progressBar1.Style = ProgressBarStyle.Marquee;
                     }));
-                    if (!System.IO.File.Exists(mService.GetUploadStatusPath(local)))
+                    updateList();
+                    //listBox1Soucrce.ResetBindings(false);
+                    bool isSuccess = false;
+                    if (!System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(local)))
                     {
-                        if (!mService.RemoteFileExists(local, remot))mService.UploadResumable(local, remot);
+                        if (!mService.RemoteFileExists(local, remot))
+                        {
+                            
+                            fList[index] = local;
+                            isSuccess=mService.UploadResumable(local, remot) !=null;
+                            this.progressBar1.Invoke(new Action(() => { this.progressBar1.Text = "Uploading..."; }));
+                        }
+                        else
+                        {
+                            isSuccess = true;
+                        }
                     }
-                    else mService.UploadResumable(local, remot);
-                    button1.Invoke(new Action(() => { button1.Enabled = true; }));
-                    lStatus.Invoke(new Action(() => { lStatus.Text = "Done."; }));
-                }
+                    else isSuccess= mService.UploadResumable(local, remot) !=null;
+                    //button1.Invoke(new Action(() => { button1.Enabled = true; }));
+                    this.progressBar1.Invoke(new Action(() => {
+                        this.progressBar1.Text = "Done.";
+                        this.progressBar1.Style = ProgressBarStyle.Blocks;
+                    }));
+                    local.IsOver = isSuccess;
+                    fList[index] = local;
+                    updateList();
+                    //listBox1Soucrce.ResetBindings(false);
+                } while (true);
             });
-            mThread = new System.Threading.Thread(work);
-            mThread.Start();
+
+            if (mThread == null || !mThread.IsAlive) { mThread = new System.Threading.Thread(work); mThread.Start(); }
+            updateList();
+            //listBox1Soucrce.ResetBindings(false);
         }
 
         private string getStr(IList<string> input)
@@ -123,6 +131,7 @@ namespace RVMCoreTest
             }
             return tmp;
         }
+
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
             //int length = 0;
@@ -137,7 +146,7 @@ namespace RVMCoreTest
             //this.textBox1.Text = string.Format("[{0}]", length.ToString());
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
             //MessageBox.Show(((RVMCore.ProgramGenre)(1 << 11)).ToRecString());
             this.progressBar1.Font = this.Font;
@@ -150,24 +159,45 @@ namespace RVMCoreTest
                             this.progressBar1.Maximum = (maxmum > int.MaxValue) ? (int)(maxmum/2): (int)maxmum;
                             this.progressBar1.Value = (maxmum > int.MaxValue) ? (int)(value/2):(int)value;
                             string mstr = "[" + getSizeString(value) + "/" + getSizeString(maxmum) + "]" + getSizeString(y) + "/s";
-                            var mSize = this.progressBar1.CreateGraphics().MeasureString(mstr, this.Font);
-                            var mPos = new PointF((this.progressBar1.Height - mSize.Height) / 2, (this.progressBar1.Width - mSize.Width) / 2);
-                            this.progressBar1.CreateGraphics().DrawString(mstr, this.Font, new SolidBrush(this.ForeColor), mPos);
+                            //var mSize = this.progressBar1.CreateGraphics().MeasureString(mstr, this.Font);
+                            //var mPos = new PointF((this.progressBar1.Height - mSize.Height) / 2, (this.progressBar1.Width - mSize.Width) / 2);
+                            //this.progressBar1.CreateGraphics().DrawString(mstr, this.Font, new SolidBrush(this.ForeColor), mPos);
+                            this.progressBar1.Text = mstr;
                         }
                     });
                     this.progressBar1.Invoke(act);
                 }
-                if (this.lStatus.InvokeRequired)
-                {
-                    Action act = new Action(() => {
-                        this.lStatus.Text = "["+ getSizeString(value) +"/" +getSizeString(maxmum)+"]" + getSizeString(y)+"/s";
-                    });
-                    this.lStatus.Invoke(act);
-                }
+                //if (this.lStatus.InvokeRequired)
+                //{
+                //    Action act = new Action(() => {
+                //        this.lStatus.Text = "["+ getSizeString(value) +"/" +getSizeString(maxmum)+"]" + getSizeString(y)+"/s";
+                //    });
+                //    this.lStatus.Invoke(act);
+                //}
+                //updateList();
+                ////listBox1Soucrce.ResetBindings(false);
             });
+            this.updateList();
+
+
+            //var mList = mService.GetGoogleFiles("name contains '.ts' and mimeType='text/plain'");
+
+            //var change =new Action<Google.Apis.Drive.v3.Data.File>(x =>{
+            //    var n = new Google.Apis.Drive.v3.Data.File();
+            //    n.Name = x.Name;
+            //    n.MimeType = "video/mp2t";
+            //    var y = mService.UpdateFile(x.Id, n);
+            //    if(!(y is null))
+            //    {
+            //        MessageBox.Show(string.Format("File '{0}' is updated \n MimeType is '{1}'", y.Name, y.MimeType));
+            //    }
+            //});
+            ////mList.ForEach(change);
+            //var mID = "1NaeKDxNMHr59NOFppnjTwLMI5Kt1hn5i";
+
+            //await mService.DownloadResumableAsync(mID, "D:\\",true);
         }
-
-
+        
         private void button2_Click(object sender, EventArgs e)
         {
             if(mThread!=null && mThread.IsAlive)
@@ -207,6 +237,119 @@ namespace RVMCoreTest
             return tmp;
         }
 
+        private void updateList()
+        {
+            if (this.listBox1.InvokeRequired)
+            {
+                this.listBox1.Invoke(new Action(() => {
+                    this.listBox1Soucrce = new BindingSource();
+                    this.listBox1Soucrce.DataSource = this.fList;
+                    this.listBox1.DataSource = listBox1Soucrce;
+                    this.listBox1.DisplayMember = "ShowName";
+                    this.listBox1.ValueMember = "FullPath";
+                }));
+            }
+            else
+            {
+                this.listBox1Soucrce = new BindingSource();
+                this.listBox1Soucrce.DataSource = this.fList;
+                this.listBox1.DataSource = listBox1Soucrce;
+                this.listBox1.DisplayMember = "ShowName";
+                this.listBox1.ValueMember = "FullPath";
+            }
+        }
+    }
+
+    public class UploadFile:INotifyPropertyChanged
+    {
+        public string ShowName {
+            get {
+                if (this.IsOver) return "==" + this.FileName;
+                else if (this.IsUploading) return "->" + this.FileName;
+                else return "--" + this.FileName;
+            }
+        }
+        public string FileName { get { return System.IO.Path.GetFileName(this.FullPath); } }
+        public string FullPath { get; }
+        public bool IsUploading { get { return System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.FullPath)); } }
+        private bool _IsOVer;
+        public bool IsOver {
+            get {
+                return _IsOVer;
+            }
+            set {
+                this._IsOVer = value;
+                this.NotifyPropertyChanged("ShowName");
+            } }
+        public string RemotePath {
+            get
+            {
+                return System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
+            }
+        }
+        public UploadFile(string filePath)
+        {
+            FullPath = filePath;
+            IsOver = false;
+        }
+
+        private void NotifyPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] String propertyName = "")
+        {
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)
+        {
+            var tmp = new List<UploadFile>();
+            foreach (string i in filePathes)
+            {
+                tmp.Add(new UploadFile(i));
+            }
+            return tmp;
+        }
+
+        public static implicit operator UploadFile(string input)
+        {
+            return new UploadFile(input);
+        }
+
+        public static implicit operator string(UploadFile input)
+        {
+            return input.FullPath;
+        }
+
+        public static bool operator ==(UploadFile obj1 , UploadFile obj2 ){
+            if (obj1 is null||obj2 is null) return false;
+            return obj1.FullPath == obj2.FullPath;
+        }
+        public static bool operator !=(UploadFile obj1, UploadFile obj2)
+        {
+            if (obj1 is null || obj2 is null) return true;
+            return obj1.FullPath != obj2.FullPath;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.FullPath.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is null ) return false;
+            return this==((UploadFile)obj);
+        }
+        //public static implicit operator List<UploadFile>(string[] input)
+        //{
+        //    foreach (string i in input)
+        //    {
+        //        yield return new UploadFile(i);
+        //    }
+        //}
     }
 
     [ToolboxBitmap(typeof(System.Windows.Forms.ProgressBar))]
@@ -227,6 +370,13 @@ namespace RVMCoreTest
         private const int PBST_NORMAL = 0x0001;
         private const int PBST_ERROR = 0x0002;
         private const int PBST_PAUSED = 0x0003;
+
+        public VistaProgressBar(): base()
+        {
+            this.ForeColor = Color.Black;
+            //SetStyle(ControlStyles.UserPaint, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+        }
 
         [Category("Behavior")]
         [Description("Event raised when the state of the Control is changed.")]
@@ -278,6 +428,41 @@ namespace RVMCoreTest
             if (m.Msg == 15)
                 ChangeState(_State);
             base.WndProc(ref m);
+            if(m.Msg == 15)
+            {
+                using(var g = Graphics.FromHwnd(Handle))
+                {
+                    using(var sfm = new StringFormat())
+                    {
+                        sfm.Alignment = StringAlignment.Center;
+                        sfm.LineAlignment = StringAlignment.Center;
+                        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                        g.DrawString(this.Text,
+                            this.Font,
+                            new SolidBrush(Color.FromArgb(256 / 3, Color.WhiteSmoke)),
+                            new RectangleF(1, 1, Width, Height),
+                            sfm
+                            );
+                        g.DrawString(this.Text, 
+                            this.Font, 
+                            new SolidBrush(Color.Black), 
+                            new RectangleF(0, 0, Width, Height), sfm);
+                    }
+
+                    //TextRenderer.DrawText(g,
+                    //   this.Text,
+                    //   this.Font,
+                    //   new Rectangle(1, 1, Width, Height),Color.FromArgb(256/3,Color.WhiteSmoke) ,
+                    //   TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.SingleLine | TextFormatFlags.WordEllipsis);
+
+                    //TextRenderer.DrawText(g,
+                    //   this.Text,
+                    //   this.Font,
+                    //   new Rectangle(0, 0, Width, Height), this.ForeColor,
+                    //   TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.SingleLine | TextFormatFlags.WordEllipsis );
+
+                }
+            }
         }
 
         [Category("Appearance")]
@@ -292,11 +477,16 @@ namespace RVMCoreTest
         {
             base.OnPaint(e);
 
-            var mSize = e.Graphics.MeasureString(this.Text, this.Font);
+            //var mSize = e.Graphics.MeasureString(this.Text, this.Font);
 
-            var mPos = new PointF((this.Height - mSize.Height) / 2, (this.Width - mSize.Width) / 2);
+            //var mPos = new PointF((this.Height - mSize.Height) / 2, (this.Width - mSize.Width) / 2);
 
-            e.Graphics.DrawString(this.Text, this.Font, new SolidBrush(this.ForeColor), mPos);
+            //e.Graphics.DrawString(this.Text, this.Font, new SolidBrush(this.ForeColor), mPos);
+            TextRenderer.DrawText(e.Graphics, 
+                this.Text, 
+                this.Font, 
+                new Rectangle(0, 0, Width, Height), this.ForeColor, 
+                TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.SingleLine | TextFormatFlags.WordEllipsis);
 
         }
     }

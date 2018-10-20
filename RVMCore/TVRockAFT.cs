@@ -52,10 +52,10 @@ namespace RVMCore
             if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
             {
                 var GoogleService = new GoogleWarpper.GoogleDrive();
-                if(new Forms.Uploader(GoogleService).ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                {
-                    return true;
-                }
+                //if(new Forms.Uploader(GoogleService).ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                //{
+                //    return true;
+                //}
                 return false;
             }
             if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))

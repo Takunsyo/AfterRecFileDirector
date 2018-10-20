@@ -11,6 +11,7 @@
     <AssemblyName>RVMCore</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
@@ -23,6 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,6 +33,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Costura, Version=3.1.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
@@ -56,6 +59,12 @@
     </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Graph.Core, Version=1.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Graph.Core.1.4.0\lib\net45\Microsoft.Graph.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.OneDrive.Sdk, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.OneDriveSDK.2.0.7\lib\portable-net45+netcore45+wpa81+win8\Microsoft.OneDrive.Sdk.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -131,21 +140,21 @@
     <Compile Include="EPGStationWarpper\Api\EPGDefault.cs" />
     <Compile Include="EPGStationWarpper\Api\RecordedProgram.cs" />
     <Compile Include="EPGStationWarpper\Helper.cs" />
-    <Compile Include="Forms\ProgressBarKai.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Forms\Uploader.cs">
-      <SubType>Form</SubType>
-    </Compile>
     <Compile Include="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Forms\MetaInfoView.xaml.cs">
       <DependentUpon>MetaInfoView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Forms\Uploader.xaml.cs">
+      <DependentUpon>Uploader.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\UploaderViewModel.cs" />
     <Compile Include="GoogleWarpper\GoogleDrive.cs" />
     <Compile Include="GoogleWarpper\MetaInfo.cs" />
     <Compile Include="MediaPlayer.cs" />
+    <Compile Include="OneDriveWarpper\AuthenticationProvider.cs" />
+    <Compile Include="OneDriveWarpper\OneDrive.cs" />
     <Compile Include="SettingObj.cs" />
     <Compile Include="ProgramGenre.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -157,9 +166,6 @@
     <Compile Include="TVRockAFT.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Forms\Uploader.resx">
-      <DependentUpon>Uploader.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Forms\FormMain.resx">
       <DependentUpon>FormMain.cs</DependentUpon>
     </EmbeddedResource>
@@ -168,6 +174,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -178,6 +185,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Forms\MetaInfoView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Forms\Uploader.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

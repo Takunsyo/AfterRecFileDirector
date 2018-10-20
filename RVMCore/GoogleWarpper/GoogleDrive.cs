@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Net.Http.Headers;
 
 namespace RVMCore.GoogleWarpper
 {
@@ -129,7 +130,7 @@ namespace RVMCore.GoogleWarpper
         public File GetGoogleFileByID(string fileID)
         {
             var req = this.Service.Files.Get(fileID);
-            req.Fields = "id, name, parents, mimeType";
+            req.Fields = "id, name, parents, mimeType, fileExtension, size, md5Checksum";
             try {
                 return req.Execute();
             }
@@ -318,20 +319,25 @@ namespace RVMCore.GoogleWarpper
             if (!System.IO.File.Exists(fullFilePath)) return false;
             //getMD5Checksum
             string mMD5 = null;
-            Thread tgMD5 = new Thread(new ThreadStart(()=> { mMD5 = CalculateMD5(fullFilePath);}));
-            tgMD5.Start();
-            string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
-            var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", fileNameWithExtension.CheckStringForQuerry(), parentID.First());
-            if (fList == null && fList.Count() ==0)
+            using (var mTokenSource = new CancellationTokenSource())
             {
-                if (tgMD5.IsAlive) tgMD5.Abort();
-                return false;
+                Thread tgMD5 = new Thread(new ThreadStart(() => { mMD5 = CalculateMD5(fullFilePath,mTokenSource.Token); }));
+                tgMD5.Start();
+                string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
+                var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", fileNameWithExtension.CheckStringForQuerry(), parentID.First());
+                if (fList == null && fList.Count() == 0)
+                {
+                    if (tgMD5.IsAlive) mTokenSource.Cancel();
+                    return false;
+                }
+                if (tgMD5.IsAlive) tgMD5.Join();
+                foreach (File i in fList)
+                {
+                    if (i.Md5Checksum == mMD5) return true;
+                }
             }
-            if (tgMD5.IsAlive) tgMD5.Join();
-            foreach (File i in fList)
-            {
-                if(i.Md5Checksum == mMD5)return true;
-            }
+
+
             return false;
         }
 
@@ -402,194 +408,255 @@ namespace RVMCore.GoogleWarpper
                 "Local file [{0}] is missing!!".ErrorLognConsole(localPath);
                 return null;
             }
-
-            using (System.IO.FileStream sr = new System.IO.FileStream(localPath,System.IO.FileMode.Open, System.IO.FileAccess.Read))
-            {                
-                if (System.IO.File.Exists(GetUploadStatusPath(localPath)))
+            //Console.WriteLine("Openning file.");
+            System.IO.FileStream sr = new System.IO.FileStream(localPath,System.IO.FileMode.Open, System.IO.FileAccess.Read);
+            //Console.WriteLine("Openning file. success.");
+            if (System.IO.File.Exists(GetUploadStatusPath(localPath)))
+            {
+                //read local log for upload uri.
+                string rmuri = "";
+                //Console.WriteLine("Try open upload meta.");
+                using (System.IO.StreamReader uriRD = new System.IO.StreamReader(GetUploadStatusPath(localPath)))
                 {
-                    //read local log for upload uri.
-                    string rmuri = "";
-                    using (System.IO.StreamReader uriRD = new System.IO.StreamReader(GetUploadStatusPath(localPath)))
+                    rmuri = uriRD.ReadToEnd();
+                }
+                //Console.WriteLine("Upload meta Oped.");
+                int chunkSize = 256*1024;
+                long byteCnt = -1;
+                Stopwatch mWatch = new Stopwatch(); ;
+                Stopwatch SpeedControl = null;
+                List<int> evaSpeed = new List<int>();
+                long spdCnt = 0;
+                while (sr.Length != sr.Position)
+                {//Start upload process
+                    if (this.MaxBytesPerSecond != 0)
                     {
-                        rmuri = uriRD.ReadToEnd();
+                        if(SpeedControl == null || !SpeedControl.IsRunning) { 
+                            SpeedControl = new Stopwatch();
+                            SpeedControl.Start();
+                        }
                     }
-                    int chunkSize = 256*1024;
-                    long byteCnt = -1;
-                    Stopwatch mWatch = new Stopwatch(); ;
-                    Stopwatch SpeedControl = null;
-                    bool EnableSpeedControl = false;
-                    if (this.MaxBytesPerSecond != 0) { 
-                        SpeedControl = new Stopwatch();
-                        SpeedControl.Start();
-                        EnableSpeedControl = true;
+                    else
+                    {
+                        if(SpeedControl !=null) SpeedControl.Stop();
+                        SpeedControl = null;
                     }
-                    List<int> evaSpeed = new List<int>();
-                    long spdCnt = 0;
-                    while (sr.Length != sr.Position)
-                    {//Start upload process
-                        mWatch.Restart();
-                        var req = InitHttpWebRequest(rmuri);
+                    mWatch.Restart();
+                    int counter = 0;
+                    byte[] tmp = new byte[chunkSize]; ;
+                    HttpWebRequest req =null;
+                    if (!(byteCnt < 0)) //in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
+                    //Get upload progress.
+                    {//Read chunk from local drive.
+                        counter = sr.Read(tmp, 0, chunkSize);
+                        if (counter <= 0) break;
+                    }
+                    bool isSend = false;
+                    ThreadStart WorkLoad = new ThreadStart(() => {
+                        //Console.WriteLine("Init upload Request.");
+                        req = InitHttpWebRequest(rmuri);
                         req.Method = "PUT";
-                        int counter = 0;
-                        byte[] tmp = new byte[chunkSize]; ;
-                        if (byteCnt < 0) //in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
-                        {//Get upload progress.
+                        req.Timeout = (5000);
+                        if (byteCnt < 0)
+                        {//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
+                            //Get upload progress.
                             byteCnt = 0;
                             req.ContentLength = counter;
                             req.Headers.Add("Content-Range", string.Format("bytes */{0}", sr.Length));
                         }
                         else
-                        {//Read chunk from local drive.
-                            counter = sr.Read(tmp, 0, chunkSize);
-                            if (counter <= 0) break;
+                        {
                             req.ContentLength = counter;
                             req.Headers.Add("Content-Range", string.Format("bytes {0}-{1}/{2}", byteCnt, byteCnt + counter - 1, sr.Length));
                         }
-                        req.Timeout=(5000);
-                        try { 
+                        try
+                        {
+                            //Console.WriteLine("Try open write upload stream");
                             using (System.IO.Stream reqStream = req.GetRequestStream())
                             {
                                 reqStream.Write(tmp, 0, counter);
+                                isSend = true;
+                                //Console.WriteLine("Upload stream Complete.");
                             }
-                        }catch(WebException ex)
-                        {
-                            ex.Message.ErrorLognConsole();
-                            "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
-                            sr.Position -= counter;
-                            continue;
-                        }
-                        HttpWebResponse rep;
-                        try //upload.
-                        {
-                            rep = (HttpWebResponse)req.GetResponse();
                         }
                         catch (WebException ex)
                         {
-                            rep = (HttpWebResponse)ex.Response;
+                            ex.Message.ErrorLognConsole();
+                            "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
+                            //sr.Position -= counter;
+                            if (byteCnt == 0) byteCnt -= 1;
+                            isSend = false;
+                            req.Abort();
                         }
-                        if (req == null)
+                    });
+                    do
+                    {
+                        Stopwatch counterTimeout = new Stopwatch();
+                        counterTimeout.Start();
+                        var mWork = new Thread(WorkLoad);
+                        mWork.Start();
+                        do
                         {
-                            "Local Error! [File:{0}]".InfoLognConsole(localPath);
-                            sr.Position -= counter;
-                            continue;
-                        }
-                        //Handle server responses.
-                        switch ((int)rep.StatusCode)
-                        {
-                            case 200:
-                            case 201:
-                                // OK
-                                "Upload complete! File:[{0}]".InfoLognConsole(localPath);
-                                System.IO.File.Delete(GetUploadStatusPath(localPath));
-                                int msp = 0;
-                                if (counter != 0)
-                                {
-                                    msp = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
-                                }
-                                evaSpeed.Add(msp);
-                                if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                                UpdateProgressChanged.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
-                                break;
-                            case 500:
-                            case 502:
-                            case 503:
-                            case 504:
-                                "Catch server error. Chunk[{1}/{2}] File:[{0}]".InfoLognConsole(localPath, byteCnt, sr.Length);
-                                sr.Position -= counter;
-                                //Server Errors retry current chunk
-                                break;
-                            case 403:
-                                //Reached rate limit. suspend a few time then countinue.
-                                "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
-                                sr.Position -= counter;
-                                Thread.Sleep(1000);
-                                break;
-                            case 404:
-                                "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
-                                System.IO.File.Delete(GetUploadStatusPath(localPath));
-                                "Retry upload.".InfoLognConsole();
-                                this.UploadResumable(localPath, remotePath);
-                                //Session has closed by server, restart upload from zero.
-                                break;
-                            case 308:
-                                Console.WriteLine("Chunk[{0}/{1}] Success!", byteCnt, sr.Length);
-                                string hd = rep.Headers.Get("Range");
-                                if (hd.IsNullOrEmptyOrWhiltSpace())
-                                {
-                                    byteCnt = 0;
-                                }
-                                else
-                                {
-                                    hd = hd.Replace("bytes=", "");
-                                    var itmp = hd.Split('-');
-                                    if (itmp != null && itmp.Count() == 2)
-                                    {
-                                        long.TryParse(itmp[1], out byteCnt);
-                                        byteCnt += 1;
-                                        sr.Position = byteCnt;
-                                    }
-                                }
-                                //Need to countinue upload.
-                                break;
-                            default:
-                                using (System.IO.Stream tmpst = rep.GetResponseStream())
-                                {
-                                    var mmm = new byte[int.Parse(rep.Headers.Get("Content-Length"))];
-                                    tmpst.ReadAsync(mmm, 0, mmm.Length);
-                                    Encoding.UTF8.GetString(mmm).ErrorLognConsole();
-                                }
-                                "Upload failed! Catch unhandled error! File:[{0}]".ErrorLognConsole(localPath);
-                                System.IO.File.Delete(GetUploadStatusPath(localPath));
-                                return null;
-                                //Other message maybe Errors.
-                        }
-                        if (EnableSpeedControl) { 
-                            spdCnt += counter;
-                            if (spdCnt >= (long)this.MaxBytesPerSecond)
+                            if(counterTimeout.ElapsedMilliseconds>5000 && mWork.IsAlive)
                             {
-                                if (SpeedControl.ElapsedMilliseconds < 1000)
-                                {
-                                    Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
-                                }
-                                spdCnt = 0;
-                                SpeedControl.Restart();
+                                "Timeout! reset thread".ErrorLognConsole();
+                                if (byteCnt == 0) byteCnt -= 1;
+                                mWork.Abort();
+                                req.Abort();
+                                break;
                             }
-                        }
-                        mWatch.Stop();
-                        int speed = 0;
-                        if (counter != 0)
+                            Thread.Sleep(200);
+                        } while (!isSend);
+                        if (!isSend)
                         {
-                            speed = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
+                            Thread.Sleep(1000);
+                            GC.Collect();
                         }
-                        evaSpeed.Add(speed);
-                        if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                        UpdateProgressChanged.Invoke(byteCnt, sr.Length, (int)evaSpeed.Average());
-                    }
-                    SpeedControl.Stop();
-                }
-                else
-                {   //This is the first time tring to oupload this file.
-                    //First create a file on google server.
-                    string parentID = this.Root.Id;
-                    if (!remotePath.IsNullOrEmptyOrWhiltSpace())
+                    } while (!isSend);
+
+                    HttpWebResponse rep;
+                    try //upload.
                     {
-                        parentID = this.GetGoogleFolderByPath(remotePath).Id;
+                        Console.WriteLine("Try getting response.");
+                        rep = (HttpWebResponse)req.GetResponse();
                     }
-                    string mime = localPath.GetMimeType();
-                    var insert = Service.Files.Create(new File() {
-                        Name = System.IO.Path.GetFileName(localPath),
-                        Parents = new string[] { parentID } }, sr, mime);
-                    var uploadUri = insert.InitiateSessionAsync().Result;
-                    var logPath = GetUploadStatusPath(localPath);
-                    //Then leave a ".upload" file to record upload status.
-                    using (System.IO.StreamWriter lsw = new System.IO.StreamWriter(logPath))
+                    catch (WebException ex)
                     {
-                        lsw.Write(uploadUri.ToString());
+                        rep = (HttpWebResponse)ex.Response;
                     }
-                    // Use resumable functions to upload file.
-                    return this.UploadResumable(localPath, remotePath);
+                    if (rep == null)
+                    {
+                        "Local Error! [File:{0}]".InfoLognConsole(localPath);
+                        sr.Position -= counter;
+                        continue;
+                    }
+                    req.Abort();//This is important here. If don't the upload procress will stop by HTT
+                    //Handle server responses.
+                    switch ((int)rep.StatusCode)
+                    {
+                        case 200:
+                        case 201:
+                            // OK
+                            "Upload complete! File:[{0}]".InfoLognConsole(localPath);
+                            System.IO.File.Delete(GetUploadStatusPath(localPath));
+                            int msp = 0;
+                            if (counter != 0)
+                            {
+                                msp = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
+                            }
+                            evaSpeed.Add(msp);
+                            if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
+                            try
+                            {
+                                UpdateProgressChanged.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
+                            }
+                            catch { }
+                            break;
+                        case 500:
+                        case 502:
+                        case 503:
+                        case 504:
+                            "Catch server error. Chunk[{1}/{2}] File:[{0}]".InfoLognConsole(localPath, byteCnt, sr.Length);
+                            sr.Position -= counter;
+                            //Server Errors retry current chunk
+                            break;
+                        case 403:
+                            //Reached rate limit. suspend a few time then countinue.
+                            "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
+                            sr.Position -= counter;
+                            Thread.Sleep(1000);
+                            break;
+                        case 404:
+                            "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
+                            System.IO.File.Delete(GetUploadStatusPath(localPath));
+                            "Retry upload.".InfoLognConsole();
+                            sr.Dispose();//Close file stream, if not thread will hang forever try to open file.
+                            return this.UploadResumable(localPath, remotePath);
+                            //Session has closed by server, restart upload from zero.
+                        case 308:
+                            Console.WriteLine("Chunk[{0}/{1}] Success!", byteCnt, sr.Length);
+                            string hd = rep.Headers.Get("Range");
+                            if (hd.IsNullOrEmptyOrWhiltSpace())
+                            {
+                                byteCnt = 0;
+                            }
+                            else
+                            {
+                                hd = hd.Replace("bytes=", "");
+                                var itmp = hd.Split('-');
+                                if (itmp != null && itmp.Count() == 2)
+                                {
+                                    long.TryParse(itmp[1], out byteCnt);
+                                    byteCnt += 1;
+                                    sr.Position = byteCnt;
+                                }
+                            }
+                            //Need to countinue upload.
+                            break;
+                        default:
+                            using (System.IO.Stream tmpst = rep.GetResponseStream())
+                            {
+                                var mmm = new byte[int.Parse(rep.Headers.Get("Content-Length"))];
+                                tmpst.ReadAsync(mmm, 0, mmm.Length);
+                                Encoding.UTF8.GetString(mmm).ErrorLognConsole();
+                            }
+                            "Upload failed! Catch unhandled error! File:[{0}]".ErrorLognConsole(localPath);
+                            System.IO.File.Delete(GetUploadStatusPath(localPath));
+                            sr.Dispose();
+                            return null;
+                            //Other message maybe Errors.
+                    }
+                    if (this.MaxBytesPerSecond != 0 && SpeedControl != null && SpeedControl.IsRunning) { 
+                        spdCnt += counter;
+                        if (spdCnt >= (long)this.MaxBytesPerSecond)
+                        {
+                            if (SpeedControl.ElapsedMilliseconds < 1000)
+                            {
+                                Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                            }
+                            spdCnt = 0;
+                            SpeedControl.Restart();
+                        }
+                    }
+                    mWatch.Stop();
+                    int speed = 0;
+                    if (counter != 0)
+                    {
+                        speed = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
+                    }
+                    evaSpeed.Add(speed);
+                    if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
+                    try { 
+                    UpdateProgressChanged.Invoke(byteCnt, sr.Length, (int)evaSpeed.Average());
+                    }
+                    catch { }
                 }
+                SpeedControl.Stop();
             }
+            else
+            {   //This is the first time tring to oupload this file.
+                //First create a file on google server.
+                string parentID = this.Root.Id;
+                if (!remotePath.IsNullOrEmptyOrWhiltSpace())
+                {
+                    parentID = this.GetGoogleFolderByPath(remotePath).Id;
+                }
+                string mime = "";// localPath.GetMimeType();application/octet-stream
+                var insert = Service.Files.Create(new File() {
+                    Name = System.IO.Path.GetFileName(localPath),
+                    Parents = new string[] { parentID } }, sr, mime);
+                var uploadUri = insert.InitiateSessionAsync().Result;
+                var logPath = GetUploadStatusPath(localPath);
+                //Then leave a ".upload" file to record upload status.
+                using (System.IO.StreamWriter lsw = new System.IO.StreamWriter(logPath))
+                {
+                    lsw.Write(uploadUri.ToString());
+                }
+                // Use resumable functions to upload file.
+                sr.Dispose();//Close stream,if not it will wait forever to open the same file.
+                return this.UploadResumable(localPath, remotePath);
+            }
+            sr.Dispose();
             FilesResource.ListRequest request = Service.Files.List();
             request.Q = string.Format("'{0}' in parents and name contains '{1}'", GetGoogleFolderByPath(remotePath).Id, System.IO.Path.GetFileName(localPath).CheckStringForQuerry());
             FileList result = request.Execute();
@@ -611,6 +678,223 @@ namespace RVMCore.GoogleWarpper
             return await Task.Run(() => UploadResumable(localPath, remotePath));
         }
 
+        /// <summary>
+        /// Update certain files metadata.
+        /// </summary>
+        /// <exception cref="WebException"></exception>
+        /// <param name="ID">GoogleDrive's file ID</param>
+        /// <param name="body">A <see cref="File"/> object of the file
+        /// <para>Only a part of the <see cref="File">'s property can be used.</para>
+        /// </param>
+        public File UpdateFile(string ID, File body)
+        {
+            var req = Service.Files.Update(body, ID);
+            return req.Execute();
+        }
+
+        /// <summary>
+        /// Make a resumable Download request to the GoogleDrive.
+        /// </summary>
+        /// <param name="ID">Google drive File ID</param>
+        /// <param name="localPath">Local folder or a specified file's path.</param>
+        /// <param name="checkMD5">Assign to <see cref="true"/> if you want to check the file with MD5 sum check.</param>
+        /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
+        public bool DownloadResumable(string ID, string localPath, bool checkMD5)
+        {
+            //Get file meta first.
+            var mFile = this.GetGoogleFileByID(ID);
+            if (mFile == null) return false;
+            //Ready local file.
+            System.IO.FileAttributes attr = System.IO.File.GetAttributes(localPath);
+            string tmpPath = null;
+            string tarPath = null;
+            if ((attr & System.IO.FileAttributes.Directory) == System.IO.FileAttributes.Directory)
+            {//if input path is a folder.
+                if (System.IO.File.Exists(System.IO.Path.Combine(localPath, mFile.Name)))
+                {
+                    "Upload Canceld :There is a file has the same name with [{0}]".ErrorLognConsole(mFile.Name);
+                    return false;
+                }
+                tmpPath = GetDownloadStatusPath(System.IO.Path.Combine(localPath, mFile.Name));
+                tarPath = System.IO.Path.ChangeExtension(tmpPath, mFile.FileExtension);
+            }
+            else
+            {
+                tmpPath = GetDownloadStatusPath(localPath);
+                tarPath = System.IO.Path.ChangeExtension(tmpPath, mFile.FileExtension);
+                if (System.IO.File.Exists(tarPath))
+                {
+                    "Upload Canceld :There is a file has the same name with [{0}]".ErrorLognConsole(mFile.Name);
+                    return false;
+                }
+            }
+            //Make request object.
+            var req = Service.Files.Get(ID);
+            //Ready others
+            int chunkSize = 256 * 1024;
+            Stopwatch mWatch = new Stopwatch(); //packet speed counter.
+            Stopwatch SpeedControl = null;      //speed control counter.
+            long spdCnt = 0;
+            List<int> evaSpeed = new List<int>();
+            //Open file to write.
+            System.IO.FileStream sw;
+            try
+            {
+                sw = new System.IO.FileStream(tmpPath, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite);
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ErrorLognConsole();
+                return false;
+            }
+            //MD5 SumCheck objects:
+            var md5 = MD5.Create();
+            if (sw.Length > 0 & checkMD5)
+            {
+                do{
+                    byte[] buffer = new byte[chunkSize];
+                    if ((sw.Position + chunkSize) > sw.Length)
+                    {
+                        int mLen = (int)(sw.Length - sw.Position);
+                        buffer = new byte[mLen];
+                        sw.Read(buffer, 0, mLen);
+                    }
+                    else
+                    {
+                        sw.Read(buffer, 0, chunkSize);
+                    }
+                    md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
+                    UpdateProgressChanged.Invoke(sw.Position, (long)mFile.Size, 0);
+                    if (sw.Position == sw.Length) break;
+                } while (true);
+            }
+            sw.Position = sw.Length;
+            do
+            {
+                if (this.MaxBytesPerSecond != 0)
+                {
+                    if (SpeedControl == null || !SpeedControl.IsRunning)
+                    {
+                        SpeedControl = new Stopwatch();
+                        SpeedControl.Start();
+                    }
+                }
+                else
+                {
+                    SpeedControl.Stop();
+                    SpeedControl = null;
+                }
+                mWatch.Restart();
+                int mChunk = chunkSize;
+                if ((sw.Position + chunkSize) > mFile.Size)
+                {
+                    mChunk = (int)(mFile.Size - sw.Position);
+                }
+                RangeHeaderValue mRange = new RangeHeaderValue(sw.Position, sw.Position + mChunk);
+                byte[] buffer = new byte[mChunk];
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    try
+                    {
+                        req.DownloadRange(ms, mRange);
+                    }
+                    catch(Exception ex)
+                    {
+                        ex.Message.ErrorLognConsole();
+                        continue;
+                    }
+                    buffer = ms.ToArray();
+                }
+                sw.Write(buffer, 0, mChunk);
+                Console.WriteLine("Chunk[{0},{1}] downloaded", sw.Position, mFile.Size);
+                if (checkMD5) {
+                    if (mChunk != chunkSize)
+                    {
+                        md5.TransformFinalBlock(buffer, 0, buffer.Length);
+                    } // if chunkSize has changed then break the loop.
+                    else
+                    {
+                        md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
+                    }
+                }
+                if (this.MaxBytesPerSecond != 0 && SpeedControl != null && SpeedControl.IsRunning)
+                {
+                    spdCnt += mChunk;
+                    if (spdCnt >= (long)this.MaxBytesPerSecond)
+                    {
+                        if (SpeedControl.ElapsedMilliseconds < 1000)
+                        {
+                            Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                        }
+                        spdCnt = 0;
+                        SpeedControl.Restart();
+                    }
+                }
+                mWatch.Stop();
+                int speed = 0;
+                if (mChunk != 0)
+                {
+                    speed = (int)(mChunk / mWatch.ElapsedMilliseconds * 1000);
+                }
+                evaSpeed.Add(speed);
+                if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
+                UpdateProgressChanged.Invoke(sw.Position, (long)mFile.Size, (int)evaSpeed.Average());
+                if (mChunk != chunkSize) break;
+            } while (true);
+            sw.Close();
+            //Rename file to orignal.
+            try
+            {
+                System.IO.File.Move(tmpPath, tarPath);
+            }
+            catch(Exception ex)
+            {
+                "Failed to rename file!".ErrorLognConsole();
+                ex.Message.ErrorLognConsole();
+                return false;
+            }
+            if (BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant() != mFile.Md5Checksum)
+            {
+                return false;
+            }
+            "Download completed! File:{0}]".InfoLognConsole(tarPath);
+            return true;
+        }
+
+        /// <summary>
+        /// Make a resumable Download request to the GoogleDrive.
+        /// </summary>
+        /// <param name="ID">Google drive File ID</param>
+        /// <param name="localPath">Local folder or a specified file's path.</param>
+        /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
+        public bool DownloadResumable(string ID, string localPath)
+        {
+            return DownloadResumable(ID, localPath, false);
+        }
+
+        /// <summary>
+        /// Make a awaitable resumable Download request to the GoogleDrive.
+        /// </summary>
+        /// <param name="ID">Google drive File ID</param>
+        /// <param name="localPath">Local folder or a specified file's path.</param>
+        /// <param name="checkMD5">Assign to <see cref="true"/> if you want to check the file with MD5 sum check.</param>
+        /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
+        public async Task<bool> DownloadResumableAsync(string ID, string localPath, bool checkMD5)
+        {
+            return await Task.Run(() => DownloadResumable(ID, localPath, checkMD5));
+        }
+
+        /// <summary>
+        /// Make a awaitable resumable Download request to the GoogleDrive.
+        /// </summary>
+        /// <param name="ID">Google drive File ID</param>
+        /// <param name="localPath">Local folder or a specified file's path.</param>
+        /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
+        public async Task<bool> DownloadResumableAsync(string ID, string localPath)
+        {
+            return await Task.Run(() => DownloadResumable(ID, localPath, false));
+        }
+
         private HttpWebRequest InitHttpWebRequest(string uri)
         {
             HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
@@ -618,11 +902,18 @@ namespace RVMCore.GoogleWarpper
             return req;
         }
 
-        public string GetUploadStatusPath(string filePath)
+        public static string GetUploadStatusPath(string filePath)
         {
             return System.IO.Path.GetExtension(filePath).ToLower() ==".upload" ? 
                 filePath : 
                 System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath),System.IO.Path.GetFileNameWithoutExtension(filePath) + ".upload");
+        }
+
+        public static string GetDownloadStatusPath(string filePath)
+        {
+            return System.IO.Path.GetExtension(filePath).ToLower() == ".part" ?
+                filePath :
+                System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath), System.IO.Path.GetFileNameWithoutExtension(filePath) + ".part");
         }
 
         private static string CalculateMD5(string filename)
@@ -637,9 +928,37 @@ namespace RVMCore.GoogleWarpper
             }
         }
 
+        //https://stackoverflow.com/questions/36705792/stop-hashing-operation-using-filestream
+        static string CalculateMD5(string path, CancellationToken ct)
+        {
+            using (var stream = System.IO.File.OpenRead(path))
+            using (var md5 = MD5.Create())
+            {
+                const int blockSize = 1024 * 1024 * 4;
+                var buffer = new byte[blockSize];
+                long offset = 0;
+
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var read = stream.Read(buffer, 0, blockSize);
+                    if (stream.Position == stream.Length)
+                    {
+                        md5.TransformFinalBlock(buffer, 0, read);
+                        break;
+                    }
+                    offset += md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
+                    //Console.WriteLine($"Processed {offset * 1.0 / 1024 / 1024} MB so far");
+                }
+                return BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant(); 
+            }
+        }
+
         public void Dispose()
         {
             ((IDisposable)Service).Dispose();
+            Root = null;
+            GC.Collect();
         }
     }
 }

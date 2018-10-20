@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using RVMCore;
+using System.Windows.Forms.Integration;
 
 namespace RVMCoreTest
 {
@@ -23,7 +25,11 @@ namespace RVMCoreTest
 #endif
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            //Application.Run(new Form1());
+            var wpfwindow = new RVMCore.Forms.Uploader();
+            ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+            if(wpfwindow.ShowDialog()== true) return;
+            //Application.Run(new RVMCore.Forms.Window1());
         }
     }
 
