@@ -38,10 +38,11 @@ namespace RVMCoreTest
             //{
             //    Debug.WriteLine(i.type);
             //}
-            access.EventRecived += mh;
-            access.SubscribeEvents(null, null);
-            access.LogRecived += log;
-            access.SubscribeLogs();
+            //access.EventRecived += mh;
+            //access.SubscribeEvents(null, null);
+            //access.LogRecived += log;
+            //access.SubscribeLogs();
+            access.StreamServiceToFile(3273601024, @"E:\1.ts", ct.Token).Start();
         }
 
         private void mh(object sender, Event events)

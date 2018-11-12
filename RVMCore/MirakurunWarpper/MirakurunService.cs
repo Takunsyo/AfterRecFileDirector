@@ -17,7 +17,7 @@ namespace RVMCore.MirakurunWarpper
     /// <summary>
     /// This class provides methods to communicate with Mirakurun Server.
     /// </summary>
-    public class MirakurunService
+    public class MirakurunService:IDisposable
     {
         /*This class supports Mirakurun Ver 2.7.3*/
         /// <summary>
@@ -240,7 +240,7 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="priority"></param>
         /// <returns>A <see cref="Thread"/> can be started.</returns>
         public Thread StreamProgramToFile(long programId, string path, CancellationToken cancelToken,
-                                     int? decode = null, int? priority = null)
+                                     int? decode = null, StreamPriority priority = StreamPriority.Default)
         {
             var workLoad = new ThreadStart(new Action(() => {
                 if (System.IO.File.Exists(path)) return;
@@ -249,7 +249,7 @@ namespace RVMCore.MirakurunWarpper
                 if (decode != null) query["decode"] = decode.ToString();
                 ub.Query = query.ToString();
                 var req = InitWebRequest(ub.ToString());
-                if (priority != null) req.Headers.Add("X-Mirakurun-Priority", priority.ToString());
+                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
                 var rep = GettingResponse(ref req);
                 if (rep == null) return;
                 switch ((int)rep.StatusCode)
@@ -456,7 +456,7 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="priority"></param>
         /// <returns>A <see cref="Thread"/> can be started.</returns>
         public Thread StreamChannelToFile(ChannelType type, int cannelId , string path, CancellationToken cancelToken,
-                                            long? serviceID = null, int? decode = null, int? priority = null)
+                                            long? serviceID = null, int? decode = null, StreamPriority priority = StreamPriority.Default)
         {
             var workLoad = new ThreadStart(new Action(() => {
                 if (System.IO.File.Exists(path)) return;
@@ -474,7 +474,7 @@ namespace RVMCore.MirakurunWarpper
                 if(decode != null)query["decode"] = decode.ToString();
                 ub.Query = query.ToString();
                 var req = InitWebRequest(ub.ToString());
-                if (priority != null) req.Headers.Add("X-Mirakurun-Priority",priority.ToString());
+                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
                 var rep = GettingResponse(ref req);
                 if (rep == null) return;
                 switch ((int)rep.StatusCode)
@@ -819,6 +819,7 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="resource"></param>
         public void SubscribeEvents(EventType? type = null,ResourceType? resource = null)
         {
+            if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) return;
             var workLoad = new ThreadStart(new Action(() => {
                 var ub = new UriBuilder(ServiceAddr.ToString() + "api/events/stream");
                 var query = HttpUtility.ParseQueryString(ub.Query);
@@ -951,6 +952,7 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         public void SubscribeLogs()
         {
+            if (!(logSubscribeThread is null) && logSubscribeThread.IsAlive) return;
             var workLoad = new ThreadStart(new Action(() => {
                 var ub = new Uri(ServiceAddr, "api/log/stream");
                 var req = InitWebRequest(ub);
@@ -1081,7 +1083,7 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="priority"></param>
         /// <returns>A <see cref="Thread"/> can be started.</returns>
         public Thread StreamServiceToFile(long serviceId, string path, CancellationToken cancelToken,
-                             int? decode = null, int? priority = null)
+                             int? decode = null, StreamPriority priority = StreamPriority.Default)
         {
             var workLoad = new ThreadStart(new Action(() => {
                 if (System.IO.File.Exists(path)) return;
@@ -1090,7 +1092,7 @@ namespace RVMCore.MirakurunWarpper
                 if (decode != null) query["decode"] = decode.ToString();
                 ub.Query = query.ToString();
                 var req = InitWebRequest(ub.ToString());
-                if (priority != null) req.Headers.Add("X-Mirakurun-Priority", priority.ToString());
+                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
                 var rep = GettingResponse(ref req);
                 if (rep == null) return;
                 switch ((int)rep.StatusCode)
@@ -1432,5 +1434,14 @@ namespace RVMCore.MirakurunWarpper
             }
         }
         #endregion
+        public bool IsDisposed { get; private set; } = false;
+        public void Dispose()
+        {
+            if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) eventSubscribeThread.Abort();
+            if((eventSubscribeCancellationTokenSource is null)) eventSubscribeCancellationTokenSource.Dispose();
+            if (!(logSubscribeThread is null) && logSubscribeThread.IsAlive) logSubscribeThread.Abort();
+            if(!(logSubscribeCancellationTokenSource is null))logSubscribeCancellationTokenSource.Dispose();
+            IsDisposed = true;
+        }
     }
 }

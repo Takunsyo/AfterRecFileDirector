@@ -1,4 +1,6 @@
-﻿namespace RVMCore.MirakurunWarpper.Apis
+﻿using System.Collections.Generic;
+
+namespace RVMCore.MirakurunWarpper.Apis
 {
     /// <summary>
     /// Response Class of "/programs"
@@ -17,7 +19,7 @@
         public Genre[] genres { get; set; }
         public Video video { get; set; }
         public Audio audio { get; set; }
-        public object extended { get; set; }
+        public Dictionary<string, string> extended { get; set; }
         public Relateditem[] relatedItems { get; set; }
         public Series series { get; set; }
     }

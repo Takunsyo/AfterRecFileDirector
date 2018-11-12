@@ -180,6 +180,7 @@
       <DependentUpon>MirakurunViewer.xaml</DependentUpon>
     </Compile>
     <Compile Include="MirakurunWarpper\MirakurunViewerView.cs" />
+    <Compile Include="MirakurunWarpper\StreamPriority.cs" />
     <Compile Include="OneDriveWarpper\AuthenticationProvider.cs" />
     <Compile Include="OneDriveWarpper\OneDrive.cs" />
     <Compile Include="SettingObj.cs" />
