@@ -16,7 +16,7 @@ namespace RVMCore.DirectShowLib
         private IntPtr notifyTarget;
         private IntPtr owner;
 
-        private FilterGraph fg;
+        //private FilterGraph fg;
         private IGraphBuilder graphBuilder;
         private IMediaControl mediaControl;
         private IVideoWindow videoWindow;

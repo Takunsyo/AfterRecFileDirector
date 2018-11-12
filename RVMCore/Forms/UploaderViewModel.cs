@@ -7,10 +7,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Threading;
 
 namespace RVMCore.Forms
 {
-    class UploaderViewModel : INotifyPropertyChanged, IDisposable
+    class UploaderViewModel : ViewModelBase, IDisposable
     {
         //public:
         private string mainname = "After record upload service GOOGLE DEMON.";
@@ -49,6 +52,18 @@ namespace RVMCore.Forms
             }
 
         }
+        private UploadFile _selectedItem;
+        public UploadFile SelectedItem {
+            get
+            {
+                return _selectedItem;
+            }
+            set
+            {
+                this.SetProperty(ref _selectedItem, value);
+            }
+        }
+        private UploadFile mUpObj;
         private bool processNowState = false;
         public bool ProcessNowState { get { return processNowState; } set { processNowState = value; this.OnPropertyChanged("ProcessNowState");}}
         private ProgressInfo processNow = new ProgressInfo();
@@ -116,305 +131,64 @@ namespace RVMCore.Forms
                 else return false;
             }
         }
-
-        public class UploadFile : INotifyPropertyChanged
-        {
-            public string ShowName
-            {
-                get
-                {
-                    if (this.IsOver) return "==" + this.FileName;
-                    else if (this.IsUploading) return "->" + this.FileName;
-                    else return "--" + this.FileName;
-                }
-            }
-            public string FileName { get { return System.IO.Path.GetFileName(this.FullPath); } }
-            public string FullPath { get; }
-            public bool IsUploading { get { return System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.FullPath)); } }
-            private bool _IsOVer;
-            public bool IsOver
-            {
-                get
-                {
-                    return _IsOVer;
-                }
-                set
-                {
-                    this._IsOVer = value;
-                    this.NotifyPropertyChanged("ShowName");
-                }
-            }
-            public string RemotePath
-            {
-                get
-                {
-                    return System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
-                }
-            }
-            public long Length { get; private set; }
-            public UploadFile(string filePath)
-            {
-                FullPath = filePath;
-                IsOver = false;
-                var fileinfo = new System.IO.FileInfo(filePath);
-                this.Length = fileinfo.Length;
-            }
-            public void UpdateData()
-            {
-                this.NotifyPropertyChanged("ShowName");
-            }
-            private void NotifyPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] String propertyName = "")
-            {
-                if (PropertyChanged != null)
-                {
-                    PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-                }
-            }
-
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)
-            {
-                var tmp = new List<UploadFile>();
-                foreach (string i in filePathes)
-                {
-                    tmp.Add(new UploadFile(i));
-                }
-                return tmp;
-            }
-
-            public static implicit operator UploadFile(string input)
-            {
-                return new UploadFile(input);
-            }
-
-            public static implicit operator string(UploadFile input)
-            {
-                return input.FullPath;
-            }
-
-            public static bool operator ==(UploadFile obj1, UploadFile obj2)
-            {
-                if (obj1 is null || obj2 is null) return false;
-                return obj1.FullPath == obj2.FullPath;
-            }
-            public static bool operator !=(UploadFile obj1, UploadFile obj2)
-            {
-                if (obj1 is null || obj2 is null) return true;
-                return obj1.FullPath != obj2.FullPath;
-            }
-
-            public override int GetHashCode()
-            {
-                return this.FullPath.GetHashCode();
-            }
-
-            public override bool Equals(object obj)
-            {
-                if (obj is null) return false;
-                return this == ((UploadFile)obj);
-            }
-        }
-        public class ProgressInfo : INotifyPropertyChanged
-        {
-            public string Text {
-                get
-                {
-                    if (max == val) return "" + Extra;
-                    return "[" + getSizeString(val) + "/" + getSizeString(max) + "]" + Extra;
-                }
-            }
-            private ulong max;
-            public int Max
-            {
-                get
-                {
-                    //if(max > int.MaxValue)
-                    //{
-                    //    return (int)(max / 2);
-                    //}
-                    return (int)(max /256);
-                }
-                set { }//max = (ulong)value; }
-            }
-            private ulong val;
-            public int Val
-            {
-                get
-                {
-                    //if(max > int.MaxValue)
-                    //{
-                    //    return (int)(val / 2);
-                    //}
-                    return (int)(val/256);
-                }
-                set { }// val = (ulong)value; }
-            }
-            public string Extra { get; set; }
-            private string getSizeString(ulong size)
-            {
-                string tmp = "";
-                if (size > 1024 * 1024 * 512)
-                {
-                    tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
-                }
-                else if (size > 1024 * 512)
-                {
-                    tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
-                }
-                else if (size > 1024)
-                {
-                    tmp = ((float)size / 1024).ToString("F2") + " Kb";
-                }
-                else
-                {
-                    tmp = (size).ToString() + " Byte";
-                }
-                return tmp;
-            }
-            public void SetValue(int val, string extra)
-            {
-                this.val = (ulong)val;
-                this.Extra = extra;
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Val");
-                this.OnPropertyChanged("Text");
-            }
-            public void SetValue(int val, int max ,string extra)
-            {
-                this.val = (ulong)val;
-                this.max = (ulong)max;
-                this.Extra = extra;
-                this.OnPropertyChanged("Val");
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Text");
-            }
-            public void SetValue(long val, string extra)
-            {
-                this.val = (ulong)val;
-                this.Extra = extra;
-                this.OnPropertyChanged("Val");
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Text");
-            }
-            public void SetValue(long val, long max, string extra)
-            {
-                this.max = (ulong)max;
-                this.val = (ulong)val;
-                this.Extra = extra;
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Val");
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Text");
-            }
-            public void SetValue(long val, long max, long extra)
-            {
-                this.max = (ulong)max;
-                this.val = (ulong)val;
-                this.Extra = getSizeString((ulong)extra) + "//s";
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Text");
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Val");
-            }
-            public void SetValue(int val, int max, int extra)
-            {
-                this.max = (ulong)max;
-                this.val = (ulong)val;
-                this.Extra = getSizeString((ulong)extra) + "//s";
-                this.OnPropertyChanged("Extra");
-                this.OnPropertyChanged("Text");
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Val");
-            }
-            public void SetValue(int val, int max)
-            {
-                this.max = (ulong)max;
-                this.val = (ulong)val;
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Text");
-                this.OnPropertyChanged("Val");
-            }
-            public void SetValue(long val, long max)
-            {
-                this.max = (ulong)max;
-                this.val = (ulong)val;
-                this.OnPropertyChanged("Max");
-                this.OnPropertyChanged("Text");
-                this.OnPropertyChanged("Val");
-            }
-            public ProgressInfo()
-            {
-                this.val = 0;
-                this.max = 100;
-                this.Extra = "";
-            }
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName]string propertyName = null)
-            {
-                if (!EqualityComparer<T>.Default.Equals(field, newValue))
-                {
-                    field = newValue;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                    return true;
-                }
-                return false;
-            }
-            public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        }
         public UploaderViewModel()
         {
             this.UploadWorkload = new System.Threading.ThreadStart(() =>
-             {
-                 do
+            {
+                //List<UploadFile> mList = new List<UploadFile>();
+                //var tfiles=System.IO.Directory.GetFiles(@"E:\9[Vault]","*.ts", System.IO.SearchOption.AllDirectories);
+                //foreach(string i in tfiles)
+                //{
+                //    mList.Add(i);
+                //    //Debugger.Break();
+                //}
+                do
                  {
                      ThreadControlName = "Pause";
-                     UploadFile local = null;
+                    this.mUpObj = null;
                      try
                      {
-                         local = FileList.First(x => !x.IsOver);
+                         this.mUpObj = FileList.First(x => !x.IsOver);
                      }
-                     catch
+                     catch(Exception ex )
                      {
-                         return;
-                     }
+                        ex.Message.InfoLognConsole();
+                    }
                     //int index = FileList.FindIndex(x => x == local);
-                    if (local == null) return;
-                     string remot = local.RemotePath;
-                     MainName = "[Uploading]" + local.FileName;
-                     NowProcressingContent = local;
-                     ProcessNow.SetValue(0, 0, "Initialize upload (MD5 File Checking...)");
-                     ProcessNowState = true;
-                     bool isSuccess = false;
-                     if (!System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(local)))
-                     {
-                         if (!Service.RemoteFileExists(local, remot))
-                         {
-                             ProcessNowState = false;
+                    if (this.mUpObj is null) return;
+                    string remot = this.mUpObj.RemotePath;
+                    MainName = "[Uploading]" + this.mUpObj.FileName;
+                    NowProcressingContent = this.mUpObj;
+                    ProcessNow.SetValue(0, 0, "Initialize upload (MD5 File Checking...)");
+                    ProcessNowState = true;
+                    bool isSuccess = false;
+                    if (!System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.mUpObj)))
+                    {   
+                        if (!Service.RemoteFileExists(this.mUpObj, remot,false))
+                        {
+                            ProcessNowState = false;
                             //FileList[index] = local;
-                            isSuccess = Service.UploadResumable(local, remot) != null;
-                         }
-                         else
-                         {
-                             ProcessNowState = false;
-                             isSuccess = true;
-                         }
-                     }
-                     else
-                     {
-                         ProcessNowState = false;
-                         isSuccess = Service.UploadResumable(local, remot) != null;
-                     }
-                    //button1.Invoke(new Action(() => { button1.Enabled = true; }));
+                            isSuccess = this.mUpObj.Upload(Service);
+                        }
+                        else
+                        {
+                            ProcessNowState = false;
+                            isSuccess = true;
+                        }
+                    }
+                    else
+                    {
+                        ProcessNowState = false;
+                        isSuccess = this.mUpObj.Upload(Service);
+                    }
+                //button1.Invoke(new Action(() => { button1.Enabled = true; }));
 
+                    Processed += this.mUpObj.Length;
                     ProcessNow.SetValue(0, 0, "Done.");
-                     ThreadControlName = "Start";
+                    ThreadControlName = "Start";
                     //this.progressBar1.Style = ProgressBarStyle.Blocks;
-                    local.IsOver = isSuccess;
-                    //FileList[index] = local;
+                    this.mUpObj.IsOver = isSuccess;
+                //FileList[index] = local;
                 } while (true);
              });
             this.mThread = new System.Threading.Thread(UploadWorkload);
@@ -439,7 +213,9 @@ namespace RVMCore.Forms
         {
             if (value >= 0 && maxmum > 0)
             {
-                if (value==0)FileList.Single(x=>x.FullPath ==NowProcressingContent).UpdateData();
+                if (value == 0) {
+                    FileList.Single(x => x.FullPath == NowProcressingContent).UpdateData();
+                }
                 ProcessNowState = false;
                 this.ProcessNow.SetValue(value, maxmum, (long)y);
                 this.processGen.SetValue(Processed + value, TotalLength);
@@ -450,7 +226,7 @@ namespace RVMCore.Forms
             using (var mdlg = new System.Windows.Forms.OpenFileDialog())
             {
                 mdlg.CheckFileExists = true;
-                mdlg.Filter = "TransPortStream|*.ts";
+                mdlg.Filter = "Transport Stream(*.ts;*.m2ts)|*.ts;*.m2ts|Meta Data(*.meta;*.xml)|*.meta;*.xml|All file(*.*)|*.*";
                 mdlg.InitialDirectory = @"E:\1[アニメ類]\";
                 mdlg.Multiselect = true;
                 if (mdlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -471,33 +247,72 @@ namespace RVMCore.Forms
             if (mThread == null || !mThread.IsAlive) { mThread = new System.Threading.Thread(UploadWorkload); mThread.Start(); return; }
             if (mThread.ThreadState == System.Threading.ThreadState.Suspended || mThread.ThreadState == System.Threading.ThreadState.SuspendRequested)
             {
-                mThread.Resume();
+                //mThread.Resume();
+                this.mUpObj.Resume();
                 ProcessStateColor = this.ProcesColor;
                 ThreadControlName = "Pause";
             }
             else
             {
-                mThread.Suspend();
+                //mThread.Suspend();
+                this.mUpObj.Pause();
                 ProcessStateColor = this.PausedColor;
                 ThreadControlName = "Resume";
             }
         }
 
-        #region"INotify"
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName]string propertyName = null)
+        public void RemoveItem(object sender, EventArgs e)
         {
-            if (!EqualityComparer<T>.Default.Equals(field, newValue))
+            if (this.SelectedItem == null) return;
+            try
             {
-                field = newValue;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                return true;
+                string info = "\n File:" + System.IO.Path.GetFileName(this.SelectedItem.FullPath) + "\n" +
+                                "Remot:" + this.SelectedItem.RemotePath + "\n" +
+                                " Size:" + this.SelectedItem.Size;
+                if (this.SelectedItem.IsUploading)
+                {
+                    if(MessageBox.Show("Current object is uploading... \n Do you want to stop current upload process?"+info,
+                                        "Removing object from list.",
+                                        MessageBoxButtons.YesNo,
+                                        MessageBoxIcon.Warning) == DialogResult.Yes)
+                    {
+                        SelectedItem.Abort();
+                        this.FileList.Remove(this.SelectedItem);
+                    }
+                }
+                else
+                {
+                    if (this.SelectedItem.IsOver || 
+                        MessageBox.Show("Do you want to remove this file?" + info, 
+                                        "Removing object from list.", 
+                                        MessageBoxButtons.YesNo, 
+                                        MessageBoxIcon.Warning) == DialogResult.Yes)
+                        this.FileList.Remove(this.SelectedItem);
+                }
             }
-            return false;
+            catch
+            {
+                MessageBox.Show("Error");
+            }
         }
-        public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+        public void UpItem(object sender, EventArgs e)
+        {
+            if (this.SelectedItem == null) return;
+            int index = this.FileList.IndexOf(this.SelectedItem);
+            if (index <= 0) return;
+            this.FileList.Move(index, index - 1);
+        }
+
+        public void DownItem(object sender, EventArgs e)
+        {
+            if (this.SelectedItem == null) return;
+            int index = this.FileList.IndexOf(this.SelectedItem);
+            if (index < 0 || index >= (this.FileList.Count-1)) return;
+            this.FileList.Move(index, index + 1);
+        }
+
+        #region"IDispose"
         public void Dispose()
         {
             if (mThread!=null && mThread.IsAlive)
@@ -508,4 +323,315 @@ namespace RVMCore.Forms
         }
         #endregion
     }
+
+    public class ProgressInfo : ViewModelBase
+    {
+        public string Text
+        {
+            get
+            {
+                if (max == val) return "" + Extra;
+                return "[" + getSizeString(val) + "/" + getSizeString(max) + "]" + Extra;
+            }
+        }
+        private ulong max;
+        public int Max
+        {
+            get
+            {
+                //if(max > int.MaxValue)
+                //{
+                //    return (int)(max / 2);
+                //}
+                return (int)(max / 256);
+            }
+            set { }//max = (ulong)value; }
+        }
+        private ulong val;
+        public int Val
+        {
+            get
+            {
+                //if(max > int.MaxValue)
+                //{
+                //    return (int)(val / 2);
+                //}
+                return (int)(val / 256);
+            }
+            set { }// val = (ulong)value; }
+        }
+        public string Extra { get; set; }
+        private string getSizeString(ulong size)
+        {
+            string tmp = "";
+            if (size > 1024 * 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
+            }
+            else if (size > 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
+            }
+            else if (size > 1024)
+            {
+                tmp = ((float)size / 1024).ToString("F2") + " Kb";
+            }
+            else
+            {
+                tmp = (size).ToString() + " Byte";
+            }
+            return tmp;
+        }
+        public void SetValue(int val, string extra)
+        {
+            this.val = (ulong)val;
+            this.Extra = extra;
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Val");
+            this.OnPropertyChanged("Text");
+        }
+        public void SetValue(int val, int max, string extra)
+        {
+            this.val = (ulong)val;
+            this.max = (ulong)max;
+            this.Extra = extra;
+            this.OnPropertyChanged("Val");
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Text");
+        }
+        public void SetValue(long val, string extra)
+        {
+            this.val = (ulong)val;
+            this.Extra = extra;
+            this.OnPropertyChanged("Val");
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Text");
+        }
+        public void SetValue(long val, long max, string extra)
+        {
+            this.max = (ulong)max;
+            this.val = (ulong)val;
+            this.Extra = extra;
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Val");
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Text");
+        }
+        public void SetValue(long val, long max, long extra)
+        {
+            this.max = (ulong)max;
+            this.val = (ulong)val;
+            this.Extra = getSizeString((ulong)extra) + "//s";
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Text");
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Val");
+        }
+        public void SetValue(int val, int max, int extra)
+        {
+            this.max = (ulong)max;
+            this.val = (ulong)val;
+            this.Extra = getSizeString((ulong)extra) + "//s";
+            this.OnPropertyChanged("Extra");
+            this.OnPropertyChanged("Text");
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Val");
+        }
+        public void SetValue(int val, int max)
+        {
+            this.max = (ulong)max;
+            this.val = (ulong)val;
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Text");
+            this.OnPropertyChanged("Val");
+        }
+        public void SetValue(long val, long max)
+        {
+            this.max = (ulong)max;
+            this.val = (ulong)val;
+            this.OnPropertyChanged("Max");
+            this.OnPropertyChanged("Text");
+            this.OnPropertyChanged("Val");
+        }
+        public ProgressInfo()
+        {
+            this.val = 0;
+            this.max = 100;
+            this.Extra = "";
+        }
+        
+    }
+
+    public class UploadFile : ViewModelBase
+    {
+        public string ShowName
+        {
+            get
+            {
+                if (this.IsOver) return "==" + this.FileName;
+                else if (this.IsUploading) return "->" + this.FileName;
+                else return "--" + this.FileName;
+            }
+        }
+        public string FileName { get { return System.IO.Path.GetFileName(this.FullPath); } }
+        public string FullPath { get; }
+        public bool IsUploading { get { return System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.FullPath)); } }
+        private bool _IsOVer;
+        public bool IsOver
+        {
+            get
+            {
+                return _IsOVer;
+            }
+            set
+            {
+                this._IsOVer = value;
+                this.NotifyPropertyChanged("ShowName");
+            }
+        }
+        public string RemotePath
+        {
+            get
+            {
+                return System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
+            }
+        }
+        public string Size
+        {
+            get
+            {
+                return getSizeString((ulong)Length);
+            }
+        }
+        public long Length { get; private set; }
+        public UploadFile(string filePath)
+        {
+            FullPath = filePath;
+            IsOver = false;
+            var fileinfo = new System.IO.FileInfo(filePath);
+            this.Length = fileinfo.Length;
+        }
+        public void UpdateData()
+        {
+            this.NotifyPropertyChanged("ShowName");
+        }
+
+        public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)
+        {
+            var tmp = new List<UploadFile>();
+            foreach (string i in filePathes)
+            {
+                tmp.Add(new UploadFile(i));
+            }
+            return tmp;
+        }
+
+        private Thread mWork = null;
+        public bool Upload(GoogleWarpper.GoogleDrive googleDrive)
+        {
+            bool result = false;
+            var workLoad = new ThreadStart(() =>
+            {
+                result = googleDrive.UploadResumable(this.FullPath, this.RemotePath) != null;
+            });
+            mWork = new Thread(workLoad);
+            mWork.IsBackground = true;
+            mWork.Start();
+            try
+            {
+                mWork.Join(Timeout.Infinite);
+            }
+            finally
+            {
+                mWork = null;
+                GC.Collect();
+            }
+            return result;
+        }
+
+        public void Abort()
+        {
+            if(!(mWork is null) && mWork.IsAlive)
+            {
+                mWork.Abort();
+            }
+        }
+
+        public void Pause()
+        {
+            if (!(mWork is null) && mWork.IsAlive)
+            {
+                mWork.Suspend();
+            }
+        }
+
+        public void Resume()
+        {
+            if (!(mWork is null) && mWork.IsAlive)
+            {
+                mWork.Resume();
+            }
+        }
+        public static implicit operator UploadFile(string input)
+        {
+            return new UploadFile(input);
+        }
+
+        public static implicit operator string(UploadFile input)
+        {
+            return input.FullPath;
+        }
+
+        public static bool operator ==(UploadFile obj1, UploadFile obj2)
+        {
+            if (obj1 is null || obj2 is null) return false;
+            return obj1.FullPath == obj2.FullPath;
+        }
+        public static bool operator !=(UploadFile obj1, UploadFile obj2)
+        {
+            if (obj1 is null || obj2 is null) return true;
+            return obj1.FullPath != obj2.FullPath;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.FullPath.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is UploadFile)
+            {
+                return this == ((UploadFile)obj);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private string getSizeString(ulong size)
+        {
+            string tmp = "";
+            if (size > 1024 * 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
+            }
+            else if (size > 1024 * 512)
+            {
+                tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
+            }
+            else if (size > 1024)
+            {
+                tmp = ((float)size / 1024).ToString("F2") + " Kb";
+            }
+            else
+            {
+                tmp = (size).ToString() + " Byte";
+            }
+            return tmp;
+        }
+    }
+
 }

@@ -107,6 +107,28 @@ namespace RVMCore.GoogleWarpper
         //}
 
         //private FolderStrucrt mRoot;
+        /// <summary>
+        /// Get a Path string point to a folder.
+        /// </summary>
+        /// <param name="ID"></param>
+        /// <returns></returns>
+        public string GetRemotePathByID(string ID)
+        {
+            if (ID == Root.Id) return "";
+            var mfile = GetGoogleFileByID(ID);
+            var result = @"\" + mfile.Name;
+            var mID = mfile.Parents.First();
+            do
+            {
+                var mN = GetGoogleFileByID(mID);
+                if(mN.Id == Root.Id)
+                {
+                    return result;
+                }
+                mID = mN.Parents.First();
+                result = @"\" + mN.Name + result;
+            } while (true);
+        }
 
         /// <summary>
         /// Initialize a new instance of <see cref="GoogleDrive"/>.
@@ -177,9 +199,9 @@ namespace RVMCore.GoogleWarpper
         /// querrystring.
         /// </summary>
         /// <param name="querrystring">Serach string. 
-        /// <para>Refence: https://developers.google.com/drive/api/v3/search-parameters
+        /// <para>More information: <a cref="https://developers.google.com/drive/api/v3/search-parameters">Api refence</a>
         /// </para></param>
-        public IEnumerable<File> GetGoogleFiles(string querrystring = "")
+        public IEnumerable<File> GetGoogleFiles(string querrystring = "",bool OnlyOwnedByMe = true)
         {
             string pageToken = null;
             List<File> tmp_list = new List<File>();
@@ -187,8 +209,16 @@ namespace RVMCore.GoogleWarpper
             {
                 var req = this.Service.Files.List();
                 req.Spaces = "drive";
-                req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : " and " + querrystring);
-                req.Fields = "nextPageToken, files(id, name, parents, size, ownedByMe, md5Checksum)";
+                req.PageToken = pageToken;
+                if (OnlyOwnedByMe)
+                {
+                    req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : " and " + querrystring);
+                }
+                else
+                {
+                    req.Q = querrystring;
+                }
+                req.Fields = "nextPageToken, files(id, name, parents, size, ownedByMe, md5Checksum, trashed, mimeType)";
                 FileList tmp;
                 try
                 {
@@ -206,12 +236,81 @@ namespace RVMCore.GoogleWarpper
         }
 
         /// <summary>
+        /// Get a <see cref="IEnumerable{T}">IEnumerable&lt;File&gt;</see>of <see cref="File"/> from google by serach with 
+        /// querrystring.
+        /// </summary>
+        /// <param name="querrystring">Serach string. 
+        /// <para>More information: <a cref="https://developers.google.com/drive/api/v3/search-parameters">Api refence</a>
+        /// </para></param>
+        public IEnumerable<File> GetGoogleFiles(ref string nextPageTokenstring, string querrystring = "", bool OnlyOwnedByMe = true)
+        {
+            var req = this.Service.Files.List();
+            req.Spaces = "drive";
+            req.PageToken = nextPageTokenstring;
+            if (OnlyOwnedByMe)
+            {
+                req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : " and " + querrystring);
+            }
+            else
+            {
+                req.Q = querrystring;
+            }
+            req.Fields = "nextPageToken, files(id, name, parents, size, ownedByMe, md5Checksum, trashed, mimeType)";
+            FileList tmp;
+            try
+            {
+                tmp = req.Execute();
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ErrorLognConsole();
+                return null;
+            }
+            nextPageTokenstring = tmp.NextPageToken;
+            return tmp.Files;
+        }
+
+        /// <summary>
+        /// Get a <see cref="IEnumerable{T}",T=File/> of <see cref="File"/> from google by serach with 
+        /// querrystring.
+        /// </summary>
+        /// <param name="querrystring">Serach string. 
+        /// <para>More information: <a cref="https://developers.google.com/drive/api/v3/search-parameters">Api refence</a>
+        /// </para></param>
+        public async Task<Tuple<IEnumerable<File>,string>> GetGoogleFilesAsync(string nextPageTokenstring, int maxContent = 100, string querrystring = "", bool OnlyOwnedByMe = true)
+        {
+            var req = this.Service.Files.List();
+            req.Spaces = "drive";
+            req.PageToken = nextPageTokenstring;
+            if (OnlyOwnedByMe)
+            {
+                req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : " and " + querrystring);
+            }
+            else
+            {
+                req.Q = querrystring;
+            }
+            req.Fields = "nextPageToken, files(id, name, parents, size, ownedByMe, md5Checksum, trashed, mimeType)";
+            FileList tmp;
+            try
+            {
+                tmp = await req.ExecuteAsync();
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ErrorLognConsole();
+                return null;
+            }
+            nextPageTokenstring = tmp.NextPageToken;
+            return new Tuple<IEnumerable<File>, string>(tmp.Files,nextPageTokenstring);
+        }
+        
+        /// <summary>
         /// Get a <see cref="IEnumerable{T}"/> of <see cref="File"/> from google by serach with 
         /// querryformat.
         /// </summary>
         /// <param name="querryformat">Serach string. 
-        /// <para>Refence: https://developers.google.com/drive/api/v3/search-parameters
-        /// </para></param>
+        /// <para>More information: <a cref="https://developers.google.com/drive/api/v3/search-parameters">Api refence</a></para></param>
         /// <param name="arg0"></param>
         /// <returns></returns>
         public IEnumerable<File> GetGoogleFiles(string querryformat, params object[] arg0)
@@ -313,7 +412,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public bool RemoteFileExists(string fullFilePath, IEnumerable<string> parentID)
+        public bool RemoteFileExists(string fullFilePath, IEnumerable<string> parentID, bool checkMD5 = true)
         {
             if (parentID == null) parentID = new string[] { "root" };
             if (!System.IO.File.Exists(fullFilePath)) return false;
@@ -321,23 +420,35 @@ namespace RVMCore.GoogleWarpper
             string mMD5 = null;
             using (var mTokenSource = new CancellationTokenSource())
             {
-                Thread tgMD5 = new Thread(new ThreadStart(() => { mMD5 = CalculateMD5(fullFilePath,mTokenSource.Token); }));
-                tgMD5.Start();
+                Thread tgMD5 = new Thread(new ThreadStart(() => {
+                    try { 
+                        mMD5 = CalculateMD5(fullFilePath,mTokenSource.Token);
+                        "MD5Cal Completed!".InfoLognConsole();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        "MD5Cal Canceled!".InfoLognConsole();
+                    }
+                    catch(Exception e)
+                    {
+                        "MD5Cal Error![{0}]".ErrorLognConsole(e.Message);
+                    }
+                }));
+                if(checkMD5)tgMD5.Start();
                 string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
                 var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", fileNameWithExtension.CheckStringForQuerry(), parentID.First());
-                if (fList == null && fList.Count() == 0)
+                if (fList == null || fList.Count() == 0)
                 {
                     if (tgMD5.IsAlive) mTokenSource.Cancel();
                     return false;
                 }
+                if (!checkMD5) return true;
                 if (tgMD5.IsAlive) tgMD5.Join();
                 foreach (File i in fList)
                 {
                     if (i.Md5Checksum == mMD5) return true;
                 }
             }
-
-
             return false;
         }
 
@@ -349,9 +460,9 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public async Task<bool> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID)
+        public async Task<bool> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true)
         {
-            return await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID));
+            return await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID,checkMD5));
         }
 
         /// <summary>
@@ -362,16 +473,16 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public bool RemoteFileExists(string fullFilePath, string remotePath = null)
+        public bool RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
         {
             if (remotePath!=null && !remotePath.IsNullOrEmptyOrWhiltSpace())
             {
                 var parID = this.GetGoogleFolderByPath(remotePath);
-                return this.RemoteFileExists(fullFilePath, new string[] { parID.Id });
+                return this.RemoteFileExists(fullFilePath, new string[] { parID.Id },checkMD5);
             }
             else
             {
-                return this.RemoteFileExists(fullFilePath, new string[] { "root" });
+                return this.RemoteFileExists(fullFilePath, new string[] { "root" },checkMD5);
             }
         }
 
@@ -389,7 +500,7 @@ namespace RVMCore.GoogleWarpper
         }
         
         /// <summary>
-        /// Will be called when Upload or Download has a progress updated.
+        /// This event will be raised when Upload or Download has a progress updated.
         /// </summary>
         public event UpdateProgress UpdateProgressChanged;
 
@@ -408,14 +519,11 @@ namespace RVMCore.GoogleWarpper
                 "Local file [{0}] is missing!!".ErrorLognConsole(localPath);
                 return null;
             }
-            //Console.WriteLine("Openning file.");
             System.IO.FileStream sr = new System.IO.FileStream(localPath,System.IO.FileMode.Open, System.IO.FileAccess.Read);
-            //Console.WriteLine("Openning file. success.");
             if (System.IO.File.Exists(GetUploadStatusPath(localPath)))
             {
                 //read local log for upload uri.
                 string rmuri = "";
-                //Console.WriteLine("Try open upload meta.");
                 using (System.IO.StreamReader uriRD = new System.IO.StreamReader(GetUploadStatusPath(localPath)))
                 {
                     rmuri = uriRD.ReadToEnd();
@@ -453,7 +561,6 @@ namespace RVMCore.GoogleWarpper
                     }
                     bool isSend = false;
                     ThreadStart WorkLoad = new ThreadStart(() => {
-                        //Console.WriteLine("Init upload Request.");
                         req = InitHttpWebRequest(rmuri);
                         req.Method = "PUT";
                         req.Timeout = (5000);
@@ -471,22 +578,20 @@ namespace RVMCore.GoogleWarpper
                         }
                         try
                         {
-                            //Console.WriteLine("Try open write upload stream");
                             using (System.IO.Stream reqStream = req.GetRequestStream())
                             {
                                 reqStream.Write(tmp, 0, counter);
                                 isSend = true;
-                                //Console.WriteLine("Upload stream Complete.");
                             }
                         }
                         catch (WebException ex)
                         {
+                            req.Abort();
+                            req.ServicePoint.CloseConnectionGroup(req.ConnectionGroupName);
                             ex.Message.ErrorLognConsole();
                             "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
-                            //sr.Position -= counter;
                             if (byteCnt == 0) byteCnt -= 1;
                             isSend = false;
-                            req.Abort();
                         }
                     });
                     do
@@ -497,12 +602,12 @@ namespace RVMCore.GoogleWarpper
                         mWork.Start();
                         do
                         {
-                            if(counterTimeout.ElapsedMilliseconds>5000 && mWork.IsAlive)
+                            if (counterTimeout.ElapsedMilliseconds > 5000 && mWork.IsAlive)
                             {
+                                req.Abort();
                                 "Timeout! reset thread".ErrorLognConsole();
                                 if (byteCnt == 0) byteCnt -= 1;
                                 mWork.Abort();
-                                req.Abort();
                                 break;
                             }
                             Thread.Sleep(200);
@@ -524,13 +629,13 @@ namespace RVMCore.GoogleWarpper
                     {
                         rep = (HttpWebResponse)ex.Response;
                     }
+                    req.Abort();//This is important here. If don't the upload procress will stop by HTT
                     if (rep == null)
                     {
                         "Local Error! [File:{0}]".InfoLognConsole(localPath);
                         sr.Position -= counter;
                         continue;
                     }
-                    req.Abort();//This is important here. If don't the upload procress will stop by HTT
                     //Handle server responses.
                     switch ((int)rep.StatusCode)
                     {
@@ -606,6 +711,7 @@ namespace RVMCore.GoogleWarpper
                             return null;
                             //Other message maybe Errors.
                     }
+                    rep.Close();
                     if (this.MaxBytesPerSecond != 0 && SpeedControl != null && SpeedControl.IsRunning) { 
                         spdCnt += counter;
                         if (spdCnt >= (long)this.MaxBytesPerSecond)
@@ -631,7 +737,7 @@ namespace RVMCore.GoogleWarpper
                     }
                     catch { }
                 }
-                SpeedControl.Stop();
+                if(SpeedControl != null)SpeedControl.Stop();
             }
             else
             {   //This is the first time tring to oupload this file.
@@ -641,10 +747,11 @@ namespace RVMCore.GoogleWarpper
                 {
                     parentID = this.GetGoogleFolderByPath(remotePath).Id;
                 }
-                string mime = "";// localPath.GetMimeType();application/octet-stream
+                string mime = localPath.GetMimeType();//application/octet-stream
                 var insert = Service.Files.Create(new File() {
                     Name = System.IO.Path.GetFileName(localPath),
-                    Parents = new string[] { parentID } }, sr, mime);
+                    Parents = new string[] { parentID } ,
+                    MimeType = mime}, sr, mime);
                 var uploadUri = insert.InitiateSessionAsync().Result;
                 var logPath = GetUploadStatusPath(localPath);
                 //Then leave a ".upload" file to record upload status.
@@ -729,9 +836,9 @@ namespace RVMCore.GoogleWarpper
                 }
             }
             //Make request object.
-            var req = Service.Files.Get(ID);
+            //var req = Service.Files.Get(ID);
             //Ready others
-            int chunkSize = 256 * 1024;
+            int chunkSize = 1024 * 1024;
             Stopwatch mWatch = new Stopwatch(); //packet speed counter.
             Stopwatch SpeedControl = null;      //speed control counter.
             long spdCnt = 0;
@@ -771,6 +878,7 @@ namespace RVMCore.GoogleWarpper
             sw.Position = sw.Length;
             do
             {
+                //Speed control.
                 if (this.MaxBytesPerSecond != 0)
                 {
                     if (SpeedControl == null || !SpeedControl.IsRunning)
@@ -781,7 +889,7 @@ namespace RVMCore.GoogleWarpper
                 }
                 else
                 {
-                    SpeedControl.Stop();
+                    if(SpeedControl !=null)SpeedControl.Stop();
                     SpeedControl = null;
                 }
                 mWatch.Restart();
@@ -790,20 +898,46 @@ namespace RVMCore.GoogleWarpper
                 {
                     mChunk = (int)(mFile.Size - sw.Position);
                 }
-                RangeHeaderValue mRange = new RangeHeaderValue(sw.Position, sw.Position + mChunk);
+                var dwnUri = @"https://www.googleapis.com/drive/v3/files/" + ID + "?alt=media";
+                HttpWebRequest req; HttpWebResponse rep =null;
+                while (true)
+                {
+                    req = InitHttpWebRequest(dwnUri);
+                    req.Method = "GET";
+                    req.AddRange(sw.Position, sw.Position + mChunk);
+                    try
+                    {
+                        rep = (HttpWebResponse)req.GetResponseAsync().Result;
+                    }
+                    catch (WebException e)
+                    {
+                        e.Message.ErrorLognConsole();
+                    }
+                    if (rep != null) break;
+                    else req.Abort();
+                    GC.Collect();
+                }
+                //RangeHeaderValue mRange = new RangeHeaderValue(sw.Position, sw.Position + mChunk);
+                //req.Headers.Add("Range:"+mRange.ToString());
                 byte[] buffer = new byte[mChunk];
                 using (var ms = new System.IO.MemoryStream())
                 {
                     try
                     {
-                        req.DownloadRange(ms, mRange);
+                        using (var msult = rep.GetResponseStream())
+                        {
+                            int rc = msult.ReadAsync(buffer, 0, mChunk).Result;
+                            if (rc <= 0) Debugger.Break();
+                            msult.Flush();
+                        }
+                            //req.DownloadRange(ms, mRange);
                     }
                     catch(Exception ex)
                     {
                         ex.Message.ErrorLognConsole();
                         continue;
                     }
-                    buffer = ms.ToArray();
+                    //buffer = ms.ToArray();
                 }
                 sw.Write(buffer, 0, mChunk);
                 Console.WriteLine("Chunk[{0},{1}] downloaded", sw.Position, mFile.Size);
@@ -830,6 +964,7 @@ namespace RVMCore.GoogleWarpper
                         SpeedControl.Restart();
                     }
                 }
+                req.Abort();
                 mWatch.Stop();
                 int speed = 0;
                 if (mChunk != 0)
@@ -895,10 +1030,100 @@ namespace RVMCore.GoogleWarpper
             return await Task.Run(() => DownloadResumable(ID, localPath, false));
         }
 
+        /// <summary>
+        /// To replace a File with a updated MimeType.
+        /// </summary>
+        /// <param name="ID">Google Drive File's ID</param>
+        /// <param name="NewMimeType">New MimeType</param>
+        /// <param name="DeleteOrignal">Set to false by default, Set to true if delete permanently.
+        /// <para>*Notice: if set to <see cref="true"/>, the deletion can *NOT be undo.</para></param>
+        /// <returns></returns>
+        public bool ReplaceFileMimetype(string ID,string NewMimeType,bool DeleteOrignal = false)
+        {
+            var oriFile = this.GetGoogleFileByID(ID);
+            if (oriFile == null) return false;
+            var newFile = new File();
+            newFile.Name = oriFile.Name;
+            newFile.Parents = oriFile.Parents;
+            newFile.MimeType = oriFile.MimeType;//NewMimeType;
+            //string jsonBody = "{\"mimeType\":\"" + NewMimeType +
+            //                    "\",\"name\":\"" + oriFile.Name + "\","+ "\"parents\":[";
+            //foreach( string i in oriFile.Parents)
+            //{
+            //    jsonBody = jsonBody + "\"" + i + "\",";
+            //}
+            //jsonBody = jsonBody.Remove(jsonBody.Length - 1);
+            //jsonBody = jsonBody + "]}";
+            //string uri = @"https://www.googleapis.com/drive/v3/files/"+ ID +@"/copy";
+            //var req = this.InitHttpWebRequest(uri);
+            //req.Method = "POST";
+            //var buffer = Encoding.UTF8.GetBytes(jsonBody);
+            //using (var st = req.GetRequestStream())
+            //{
+            //    st.Write(buffer, 0, buffer.Length);
+            //}
+            //using(var rep = req.GetResponse())
+            //{
+            //    if (rep ==null) return false;
+            //}
+            newFile = this.Service.Files.Copy(newFile, ID).Execute();
+            if (newFile == null) return false;
+            DeleteFile(ID, !DeleteOrignal);
+            return true;
+        }
+
+        /// <summary>
+        /// Delete a file permanently or put a file in to trash.
+        /// <para>Trash function is using Google Drive API V2 direct http post request.</para>
+        /// </summary>
+        /// <param name="ID">The file's ID.</param>
+        /// <param name="PutInTrash">Set to <see cref="true"/> by Default, If delete file permanently set it to <see cref="false"/>. 
+        /// <para>*Notice: if set to <see cref="false"/>, this action can *NOT be undo.</para></param>
+        /// <returns></returns>
+        public bool DeleteFile(string ID, bool PutInTrash = true)
+        {
+            if (PutInTrash)
+            {
+                var uri = String.Format("https://www.googleapis.com/drive/v2/files/{0}/trash", ID);
+                var req = this.InitHttpWebRequest(uri);
+                req.Method = "POST";
+                req.ContentLength = 0;
+                try
+                {
+                    req.GetResponse();
+                }
+                catch(WebException ex)
+                {
+                    ex.Message.ErrorLognConsole();
+                    return false;
+                }
+                return true;
+            }
+            else
+            {
+                var req = this.Service.Files.Delete(ID);
+                try
+                {
+                    req.Execute();
+                }
+                catch(Exception ex)
+                {
+                    ex.Message.ErrorLognConsole();
+                    return false;
+                }
+                return true;
+            }
+        }
+
         private HttpWebRequest InitHttpWebRequest(string uri)
         {
             HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
             req.Headers.Add("Authorization", "Bearer " + ((UserCredential)Service.HttpClientInitializer).Token.AccessToken);
+            req.KeepAlive = false;
+            req.AllowWriteStreamBuffering = false;
+            req.ProtocolVersion = HttpVersion.Version11;
+            req.ReadWriteTimeout = 5000;
+            req.UserAgent = "RVMCore.GoogleClient";
             return req;
         }
 
@@ -928,29 +1153,49 @@ namespace RVMCore.GoogleWarpper
             }
         }
 
-        //https://stackoverflow.com/questions/36705792/stop-hashing-operation-using-filestream
+        /// <summary>
+        /// Calculate MD5 hash for file, can be stop.         
+        /// <para>
+        /// See how to use : 
+        /// <a cref="https://stackoverflow.com/questions/36705792/stop-hashing-operation-using-filestream">
+        /// Link to Starkoverflow</a></para>
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// try {
+        ///     var md5 = <c>CalculateMD5</c>(path,ct)
+        /// }
+        /// catch(OperationCanceledException){
+        ///     ActionsWhenCanceled.
+        /// }
+        /// </code></example>
+        /// <param name="path">Full local file path.</param>
+        /// <param name="ct">Stopper <see cref="CancellationToken"/></param>
+        /// <returns>A Hash MD5 String.</returns>
         static string CalculateMD5(string path, CancellationToken ct)
         {
             using (var stream = System.IO.File.OpenRead(path))
-            using (var md5 = MD5.Create())
             {
-                const int blockSize = 1024 * 1024 * 4;
-                var buffer = new byte[blockSize];
-                long offset = 0;
-
-                while (true)
+                using (var md5 = MD5.Create())
                 {
-                    ct.ThrowIfCancellationRequested();
-                    var read = stream.Read(buffer, 0, blockSize);
-                    if (stream.Position == stream.Length)
+                    const int blockSize = 1024 * 1024 * 4;
+                    var buffer = new byte[blockSize];
+                    long offset = 0;
+
+                    while (true)
                     {
-                        md5.TransformFinalBlock(buffer, 0, read);
-                        break;
+                        ct.ThrowIfCancellationRequested();
+                        var read = stream.Read(buffer, 0, blockSize);
+                        if (stream.Position == stream.Length)
+                        {
+                            md5.TransformFinalBlock(buffer, 0, read);
+                            break;
+                        }
+                        offset += md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
+                        //Console.WriteLine($"Processed {offset * 1.0 / 1024 / 1024} MB so far");
                     }
-                    offset += md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
-                    //Console.WriteLine($"Processed {offset * 1.0 / 1024 / 1024} MB so far");
+                    return BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant();
                 }
-                return BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant(); 
             }
         }
 

@@ -85,6 +85,21 @@ namespace RVMCore.Forms
             }
             mView.Dispose();
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            mView.UpItem(sender, e);
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            mView.RemoveItem(sender, e);
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+            mView.DownItem(sender, e);
+        }
     }
 
 

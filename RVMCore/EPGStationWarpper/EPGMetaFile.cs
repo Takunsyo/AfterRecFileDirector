@@ -84,14 +84,30 @@ namespace RVMCore.EPGStationWarpper
         {
             this.Meta = access.GetRecordProgramByID(rid);
             this.mLogo = access.GetChannelLogoBytesByID(this.Meta.channelId);
-            this.mThumb = access.GetRecordedThumbnailBytesByID(rid);
+            byte[] tmp = null;
+            int i = 0;
+            while((tmp is null) & (i <=3))
+            {
+                System.Threading.Thread.Sleep(1000);
+                tmp = access.GetRecordedThumbnailBytesByID(rid);
+                i++;
+            }
+            this.mThumb = tmp;
         }
 
         public EPGMetaFile(EPGAccess access, Api.RecordedProgram obj)
         {
             this.Meta = obj;
             this.mLogo = access.GetChannelLogoBytesByID(this.Meta.channelId);
-            this.mThumb = access.GetRecordedThumbnailBytesByID(obj.id);
+            byte[] tmp = null;
+            int i = 0;
+            while ((tmp is null) & (i <= 3))
+            {
+                System.Threading.Thread.Sleep(1000);
+                tmp = access.GetRecordedThumbnailBytesByID(obj.id);
+                i++;
+            }
+            this.mThumb = tmp;
         }
 
         public byte[] GetBytes()

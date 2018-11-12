@@ -18,14 +18,6 @@
                 
                 components.Dispose();
             }
-            if(mThread !=null && mThread.IsAlive)
-            {
-                if(mThread.ThreadState == System.Threading.ThreadState.Suspended)
-                {
-                    mThread.Resume();
-                }
-                mThread.Abort();
-            }
             base.Dispose(disposing);
         }
 
@@ -41,7 +33,6 @@
             this.button1 = new System.Windows.Forms.Button();
             this.listBox1 = new System.Windows.Forms.ListBox();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
-            this.progressBar1 = new RVMCoreTest.VistaProgressBar();
             this.lStatus = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -62,7 +53,6 @@
             this.button1.TabIndex = 1;
             this.button1.Text = "Open";
             this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // listBox1
             // 
@@ -81,14 +71,6 @@
             this.pictureBox2.Size = new System.Drawing.Size(100, 50);
             this.pictureBox2.TabIndex = 5;
             this.pictureBox2.TabStop = false;
-            // 
-            // progressBar1
-            // 
-            this.progressBar1.Location = new System.Drawing.Point(2, 25);
-            this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(743, 23);
-            this.progressBar1.TabIndex = 6;
-            this.progressBar1.Text = null;
             // 
             // lStatus
             // 
@@ -116,7 +98,6 @@
             this.ClientSize = new System.Drawing.Size(748, 285);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.lStatus);
-            this.Controls.Add(this.progressBar1);
             this.Controls.Add(this.pictureBox2);
             this.Controls.Add(this.listBox1);
             this.Controls.Add(this.button1);
@@ -138,7 +119,6 @@
         private System.Windows.Forms.ListBox listBox1;
         private System.Windows.Forms.PictureBox pictureBox2;
         //private System.Windows.Forms.ProgressBar progressBar1;
-        private VistaProgressBar progressBar1;
         private System.Windows.Forms.Label lStatus;
         private System.Windows.Forms.Button button2;
     }

@@ -47,18 +47,18 @@ namespace RVMCore.EPGStationWarpper
         {
             switch (genre)
             {
-                case ProgramGenre.News: return "ニュース・報道"; break;
-                case ProgramGenre.Sports: return "スポーツ"; break;
-                case ProgramGenre.Drama: return "ドラマ"; break;
-                case ProgramGenre.Music: return "音楽"; break;
-                case ProgramGenre.Variety: return "バラエティー"; break;
-                case ProgramGenre.Movie: return "映画"; break;
-                case ProgramGenre.Anime: return "アニメ・特撮"; break;
-                case ProgramGenre.Infomation: return "情報・ワイドショー"; break;
-                case ProgramGenre.Documantry: return "ドキュメンタリー"; break;
-                case ProgramGenre.Live: return "劇場・公演"; break;
-                case ProgramGenre.Education: return "趣味・教育"; break;
-                default: return "その他"; break;
+                case ProgramGenre.News: return "ニュース・報道"; 
+                case ProgramGenre.Sports: return "スポーツ"; 
+                case ProgramGenre.Drama: return "ドラマ"; 
+                case ProgramGenre.Music: return "音楽"; 
+                case ProgramGenre.Variety: return "バラエティー"; 
+                case ProgramGenre.Movie: return "映画"; 
+                case ProgramGenre.Anime: return "アニメ・特撮"; 
+                case ProgramGenre.Infomation: return "情報・ワイドショー"; 
+                case ProgramGenre.Documantry: return "ドキュメンタリー";
+                case ProgramGenre.Live: return "劇場・公演"; 
+                case ProgramGenre.Education: return "趣味・教育"; 
+                default: return "その他"; 
             }
         }
 

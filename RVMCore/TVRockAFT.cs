@@ -12,6 +12,7 @@ using System.Net;
 using RVMCore.EPGStationWarpper;
 using RVMCore.EPGStationWarpper.Api;
 using log4net;
+using System.Windows.Forms.Integration;
 
 namespace RVMCore
 {
@@ -51,12 +52,9 @@ namespace RVMCore
             StreamFile mpars = null;
             if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
             {
-                var GoogleService = new GoogleWarpper.GoogleDrive();
-                //if(new Forms.Uploader(GoogleService).ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                //{
-                //    return true;
-                //}
-                return false;
+                var wpfwindow = new RVMCore.Forms.Uploader();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
             }
             if (margs.Any(x => x.Equals("-epgstation", StringComparison.OrdinalIgnoreCase)))
             {

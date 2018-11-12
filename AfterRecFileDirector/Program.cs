@@ -189,7 +189,7 @@ namespace AfterRecFileDirector
             //Upload(@"I:\0.SuperBird\[20180506]ミュージカル『刀剣乱舞』～結びの響き、始まりの音～.ts", true,false);
             //Debugger.Break();
 #endif
-            if (args.Length <= 1)
+            if (args.Length <= 0)
             {
                 Console.WriteLine("No argument found, App will run on Winform Mode.");
                 if (mySetting.AllowBeep)
@@ -206,7 +206,11 @@ namespace AfterRecFileDirector
             {
                 Show5S();
             }
-            ShowWindow(mHwnd, SW_SHOW);
+            if (!(args.Length >= 1 && args[0].ToLower() == "-upload" ))
+            {
+                FreeConsole();
+                ShowWindow(mHwnd, SW_SHOW);
+            }
             // AllocConsole()
             Console.WriteLine("App is running in Console Mode.");
             // if in console mode

@@ -1,0 +1,63 @@
+﻿<Window x:Class="RVMCore.Forms.CloudViewer"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RVMCore.Forms"
+        mc:Ignorable="d"
+        Title="Window1" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="410*"/>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="400*"/>
+        </Grid.ColumnDefinitions>
+        <TabControl Grid.RowSpan="2">
+            <TabItem Header="OneDrive">
+                <Grid Background="#FFE5E5E5"/>
+            </TabItem>
+            <TabItem Header="Google Drive">
+                <Grid Background="#FFE5E5E5"/>
+            </TabItem>
+        </TabControl>
+        <TextBlock Text="{Binding ElementName=MainView,Path=SelectedItem.Text}" Grid.Column="1"/>
+        <TreeView Name="MainView" Grid.Column="1" Grid.Row="1" ItemsSource="{Binding Path=TreeView}">
+            <TreeView.Resources>
+                <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                    <Setter Property="IsExpanded" Value="{Binding Path=IsExpanded,Mode=TwoWay}"/>
+                    <Setter Property="IsSelected" Value="{Binding Path=IsSelected,Mode=TwoWay}"/>
+                </Style>
+            </TreeView.Resources>
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate DataType="{x:Type local:DriveTree}" ItemsSource="{Binding Path=Childs}">
+                        
+                    <!--<HierarchicalDataTemplate.ItemContainerStyle>
+                        <Trigger Property="">
+                            <DataTrigger Binding="{Binding Path=Expandible}" Value="True">
+                                <Setter Property=""></Setter>
+                            </DataTrigger>
+                        </Trigger>
+                        </HierarchicalDataTemplate.ItemContainerStyle>-->
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="120*"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        <Image Source="{Binding Icon}" Stretch="Uniform" />
+                        <TextBlock Text="{Binding Path=Text}" Grid.Column="1"/>
+                        <!--<TextBlock Text="Ready" Grid.Column="2"/>-->
+                    </Grid>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+    </Grid>
+    
+</Window>

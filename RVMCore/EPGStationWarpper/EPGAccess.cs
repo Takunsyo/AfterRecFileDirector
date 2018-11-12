@@ -40,7 +40,7 @@ namespace RVMCore.EPGStationWarpper
         /// </summary>
         /// <param name="id">Record ID</param>
         /// <returns></returns>
-        public RecordedProgram GetRecordProgramByID(int id)
+        public RecordedProgram GetRecordProgramByID(int? id)
         {
             if (id == null || id <= 0) return null;
             string EPGATTR = "http://{1}/api/recorded/{0}";

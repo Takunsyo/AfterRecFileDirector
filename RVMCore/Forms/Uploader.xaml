@@ -6,17 +6,24 @@
         xmlns:local="clr-namespace:RVMCore.Forms"
         mc:Ignorable="d"
         Title="{Binding MainName}" 
-        Height="417.072" Width="647" 
+        Height="450" Width="650" 
         HorizontalAlignment="Left" VerticalAlignment="Top" 
         ResizeMode="CanMinimize"
         Closing="Window_Closing">
-
     <Grid Margin="3">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="62*"/>
-            <ColumnDefinition Width="65*"/>
+            <ColumnDefinition Width="66"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="66"/>
         </Grid.ColumnDefinitions>
-        <Grid Height="21" Margin="0,344,3,0" VerticalAlignment="Top" Grid.ColumnSpan="2">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="25"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="25"/>
+            <RowDefinition Height="25"/>
+            <RowDefinition Height="25"/>
+        </Grid.RowDefinitions>
+        <Grid Margin="3,3" Grid.Row="4" Grid.ColumnSpan="3">
             <ProgressBar x:Name="progressBar" Height="21" 
                             VerticalAlignment="Top"
                             Foreground="{Binding ProcessStateBrush}"
@@ -31,10 +38,10 @@
             <Grid.Effect>
                 <DropShadowEffect Color="{Binding ProcessStateColor}"
                         ShadowDepth="0"
-                        BlurRadius="5" />
+                        BlurRadius="5"/>
             </Grid.Effect>
         </Grid>
-        <Grid Height="21" Margin="0,318,3,0" VerticalAlignment="Top" Grid.ColumnSpan="2">
+        <Grid Margin="3"  Grid.ColumnSpan="3" Grid.Row="3">
             <ProgressBar Height="21" 
                         VerticalAlignment="Top" 
                         Foreground="{Binding ProcessStateBrush}"
@@ -50,41 +57,70 @@
                           BlurRadius="5" />
             </Grid.Effect>
         </Grid>
-        <ListBox Margin="0,16,3,0" 
-                 Height="272" 
-                 VerticalAlignment="Top" 
-                 DisplayMemberPath="ShowName"
-                 ItemsSource="{Binding FileList}" Grid.ColumnSpan="2"/>
+        <Grid Grid.ColumnSpan="3" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="600"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30*"/>
+                <RowDefinition Height="30*"/>
+                <RowDefinition Height="30*"/>
+            </Grid.RowDefinitions>
+            <ListBox ItemsSource="{Binding FileList}" 
+                 Grid.RowSpan="3"
+                 Grid.Column="0"
+                 SelectedItem="{Binding SelectedItem,Mode=TwoWay}">
+                <!--DisplayMemberPath="ShowName"-->
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="530"/>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding ShowName}"/>
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Right" Text="{Binding Size}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Grid.Row="0" Grid.Column="1" Content="⇧" Margin="2,20" HorizontalContentAlignment="Center" Click="Button_Click"/>
+            <Button Grid.Row="1" Grid.Column="1" Content="✖" Margin="2,20" HorizontalContentAlignment="Center" Click="Button_Click_1"/>
+            <Button Grid.Row="2" Grid.Column="1" Content="⇩" Margin="2,20" HorizontalContentAlignment="Center" Click="Button_Click_2"/>
+        </Grid>
+
         <Button Content="{Binding ThreadControlName}" 
                 Click="Start_Click"
-                Margin="0,293,11,0" 
-                VerticalAlignment="Top" 
-                HorizontalAlignment="Right" 
-                Width="60" Grid.Column="1"/>
+                Margin="3,3" 
+                Grid.Column="3" Grid.Row="2"/>
         <Button Content="Open" 
                 Click="Open_Click"
-                Margin="0,293,250.371,0" 
-                VerticalAlignment="Top"/>
+                Margin="3,3" 
+                Grid.Column="0" Grid.Row="2"/>
         <TextBox TextWrapping="NoWrap" 
                    Text="{Binding Path=NowProcressingContent}" 
-                   VerticalAlignment="Top" 
                    IsReadOnly="True" 
-                   Margin="0,0,3,0" Grid.ColumnSpan="2"/>
-        <Grid Height="23" Margin="210,291,210,0" VerticalAlignment="Top" Grid.ColumnSpan="2">
+                   Margin="0,2"
+                 Grid.ColumnSpan="3"/>
+        <Grid Margin="150,0" Grid.Row="2" Grid.Column="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="45*"/>
+                <ColumnDefinition Width="30*"/>
+                <ColumnDefinition Width="25*"/>
+            </Grid.ColumnDefinitions>
             <CheckBox Content="LimitSpeed" 
-                        Name="cbLimit"
-                HorizontalAlignment="Left" 
-                Height="17" Margin="0,3,0,0" 
-                VerticalAlignment="Top" Width="83"
-                IsChecked="{Binding IsSpeedControl, Mode=TwoWay}"/>
-            <TextBox HorizontalAlignment="Left" 
-                Height="23" 
-                Margin="88,0,0,0" 
-                TextWrapping="Wrap" 
-                VerticalAlignment="Top" 
+                      Name="cbLimit"
+                      HorizontalAlignment="Left" 
+                      VerticalAlignment="Center" 
+                      Grid.Column="0"
+                      IsChecked="{Binding IsSpeedControl, Mode=TwoWay}"/>
+            <TextBox HorizontalAlignment="Center" 
+                VerticalAlignment="Center" 
                 PreviewTextInput="TextBoxInput"
+                Margin="3" MinWidth="35"
                 DataObject.Pasting="TextBoxPasting"
-                Width="60"
+                Grid.Column="1"
                 Text="{Binding MaxSpeed,Mode=TwoWay}">
                 <TextBox.Style>
                     <Style TargetType="TextBox">
@@ -99,7 +135,7 @@
                     </Style>
                 </TextBox.Style>
             </TextBox>
-            <TextBlock HorizontalAlignment="Left" Height="23" Margin="148,0,0,0" TextWrapping="Wrap" Text="Byte/s" VerticalAlignment="Top" Width="52"/>
+            <TextBlock HorizontalAlignment="Left" Grid.Column="2" Text="Byte/s" VerticalAlignment="Center"/>
             <Grid.Style>
                 <Style TargetType="Grid">
                     <Style.Triggers>

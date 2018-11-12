@@ -26,9 +26,11 @@ namespace RVMCoreTest
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             //Application.Run(new Form1());
-            var wpfwindow = new RVMCore.Forms.Uploader();
+            //var wpfwindow = new RVMCore.Forms.Uploader();
+            //var wpfwindow = new RVMCore.Forms.CloudViewer();
+            var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
             ElementHost.EnableModelessKeyboardInterop(wpfwindow);
-            if(wpfwindow.ShowDialog()== true) return;
+            if (wpfwindow.ShowDialog() == true) return;
             //Application.Run(new RVMCore.Forms.Window1());
         }
     }
