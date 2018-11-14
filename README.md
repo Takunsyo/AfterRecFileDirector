@@ -43,6 +43,6 @@ AfterRecFileDirector.exe -mirakurun
 - DirectShowでいろいろ試そうとして引用した(こちらはDllではなくコードをコピペして少し編集しました)[DirectShowNET Library
 ](http://directshownet.sourceforge.net)
 
-- その他グーグルドライブ用に[Google.Apis.Drive.v3]、マイクロソフトワンドライブ用に[Microsoft.OneDrive.Sdk]等をも引用しました。
+- その他グーグルドライブ用に[Google.Apis.Drive.v3](https://www.nuget.org/packages/Google.Apis.Drive.v3/)、マイクロソフトワンドライブ用に[Microsoft.OneDrive.Sdk](https://github.com/OneDrive/onedrive-sdk-csharp)等をも引用しました。
 
 - バイナリやコードを引用したわけではないが、作動に欠けないものとして[Chinachu/Mirakurun](https://github.com/Chinachu/Mirakurun)の働きがすべてのデータを提供しています。
