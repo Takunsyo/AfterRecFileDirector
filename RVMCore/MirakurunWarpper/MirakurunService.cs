@@ -25,6 +25,34 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         public Uri ServiceAddr { get; private set; }
 
+        /// <summary>
+        /// Get a UNIX Timestamp from a specific DateTime object.
+        /// <para>*TimeStamp is counted in milliseconds.</para>
+        /// </summary>
+        public static long GetUNIXTimeStamp(DateTime time)
+        {
+            return  (long)(time.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
+        }
+
+        /// <summary>
+        /// Get current time UNIX Timestamp.
+        /// <para>*TimeStamp is counted in milliseconds.</para>
+        /// </summary>
+        public static long GetUNIXTimeStamp()
+        {
+            return GetUNIXTimeStamp(DateTime.Now);
+        }
+
+        /// <summary>
+        /// Get a <see cref="DateTime"/> object from a UNIX TimeStamp.
+        /// </summary>
+        /// <param name="UNIXTimeStamp">The TimeStamp are Mirakurun server is using counted in milliseconds.</param>
+        /// <returns></returns>
+        public static DateTime GetDateTime(long UNIXTimeStamp)
+        {
+            return new DateTime(1970, 1, 1).AddMilliseconds(UNIXTimeStamp);
+        }
+
         #region"Init"
         /// <summary>
         /// Initialize a new instance of <see cref="MirakurunService"/>
@@ -176,7 +204,7 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="serviceID">serviceId</param>
         /// <param name="eventID">eventId</param>
         /// <returns>A array of <see cref="Program"/></returns>
-        public IEnumerable<Program> GetPrograms(int? networkID, int? serviceID,long? eventID)
+        public IEnumerable<Program> GetPrograms(int? networkID=null, int? serviceID=null,long? eventID=null)
         {
             var ub = new UriBuilder( ServiceAddr.ToString()+ "api/programs");
             var query = HttpUtility.ParseQueryString(ub.Query);
@@ -827,6 +855,7 @@ namespace RVMCore.MirakurunWarpper
                 if (resource != null) query["resource"] = resource.ToString();
                 ub.Query = query.ToString();
                 var req = InitWebRequest(ub.ToString());
+                req.Timeout = Timeout.Infinite;
                 var rep = GettingResponse(ref req);
                 if (rep == null) return;
                 switch ((int)rep.StatusCode)
@@ -834,6 +863,7 @@ namespace RVMCore.MirakurunWarpper
                     case 200:
                         using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
                         {
+                            streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
                             if (type is null)
                             {
                                 SubscribedEventType = EventType.create | EventType.redefine | EventType.update;
@@ -956,6 +986,7 @@ namespace RVMCore.MirakurunWarpper
             var workLoad = new ThreadStart(new Action(() => {
                 var ub = new Uri(ServiceAddr, "api/log/stream");
                 var req = InitWebRequest(ub);
+                req.Timeout = Timeout.Infinite;
                 var rep = GettingResponse(ref req);
                 if (rep == null) return;
                 switch ((int)rep.StatusCode)
@@ -963,6 +994,7 @@ namespace RVMCore.MirakurunWarpper
                     case 200:
                         using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
                         {
+                            streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
                             //Start parsing cycle
                             try
                             {

@@ -1,4 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Documents;
 
 namespace RVMCore.MirakurunWarpper.Apis
 {
@@ -12,7 +16,7 @@ namespace RVMCore.MirakurunWarpper.Apis
         public int serviceId { get; set; }
         public int networkId { get; set; }
         public long startAt { get; set; }
-        public int duration { get; set; }
+        public long duration { get; set; }
         public bool isFree { get; set; }
         public string name { get; set; }
         public string description { get; set; }
@@ -22,6 +26,22 @@ namespace RVMCore.MirakurunWarpper.Apis
         public Dictionary<string, string> extended { get; set; }
         public Relateditem[] relatedItems { get; set; }
         public Series series { get; set; }
+
+        public string Information
+        { get
+            {
+                var bd = new System.Text.StringBuilder();
+                bd.AppendLine(this.description);
+                if (this.extended is null) return bd.ToString();
+                bd.AppendLine("---   ---");
+                foreach (KeyValuePair<string,string> i in this.extended)
+                {
+                    bd.AppendLine("*"+i.Key);
+                    bd.AppendLine(i.Value);
+                }
+                return bd.ToString();
+            }
+        }
     }
 
     public class Video
@@ -30,12 +50,28 @@ namespace RVMCore.MirakurunWarpper.Apis
         public string resolution { get; set; }
         public int streamContent { get; set; }
         public int componentType { get; set; }
+        public Paragraph GetBlock()
+        {
+            var tmp = new Paragraph();
+            tmp.Inlines.Add(new Bold(new Run("Video:")));
+            tmp.FontSize = 10;
+            tmp.Inlines.Add(type + "," + resolution);
+            return tmp;
+        }
     }
 
     public class Audio
     {
         public int samplingRate { get; set; }
         public int componentType { get; set; }
+        public Paragraph GetBlock()
+        {
+            var tmp = new Paragraph();
+            tmp.Inlines.Add(new Bold(new Run("Audio:")));
+            tmp.FontSize = 10;
+            tmp.Inlines.Add("SampleRate="+samplingRate.ToString());
+            return tmp;
+        }
     }
     
     public class Series
@@ -63,4 +99,21 @@ namespace RVMCore.MirakurunWarpper.Apis
         public int serviceId { get; set; }
         public int eventId { get; set; }
     }
+
+    //public class ProgramConverter : IValueConverter
+    //{
+    //    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    //    {
+    //        if (value is Program) throw new ArgumentException("I can't take this as input.", "value");
+    //        Program mObj = (Program)value;
+            
+            
+    //    }
+
+    //    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    //    {
+    //        throw new NotImplementedException();
+    //    }
+    //}
+
 }

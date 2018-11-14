@@ -50,6 +50,12 @@ namespace RVMCore
             }
             EPGAccess mAccess = null;
             StreamFile mpars = null;
+            if (margs.Any(x => x.Equals("-mirakurun", StringComparison.OrdinalIgnoreCase)))
+            {
+                var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
+            }
             if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
             {
                 var wpfwindow = new RVMCore.Forms.Uploader();

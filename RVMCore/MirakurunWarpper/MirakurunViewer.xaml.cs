@@ -28,18 +28,25 @@ namespace RVMCore.MirakurunWarpper
             this.DataContext = mView;
             
         }
-
+        private void VolumeBar(object sender, MouseWheelEventArgs e)
+        {
+            Player.Volume += (e.Delta > 0) ? 0.1 : -0.1;
+        }
         public void listbox_dblClick(object sender, EventArgs e)
         {
+            Player.Stop();
             mView.ChangeChannel();
-            MediaPlayer player = new MediaPlayer();
-            player.Open(mView.ViewUri);
-            VideoDrawing drawing = new VideoDrawing();
-            drawing.Rect = new Rect(0, 0, 300, 200);
-            drawing.Player = player;
-            player.Play();
-            DrawingBrush brush = new DrawingBrush(drawing);
-            this.PlayerBack.Background = brush;
+            Player.Play();
+            //MediaPlayer player = new MediaPlayer();
+            //player.Open(mView.ViewUri);
+            //VideoDrawing drawing = new VideoDrawing();
+            //drawing.Rect = new Rect(0, 0, 300, 200);
+            //drawing.Player = player;
+            //player.Play();
+            //DrawingBrush brush = new DrawingBrush(drawing);
+            //this.PlayerBack.Background = brush;
         }
+        
+         //private static 
     }
 }

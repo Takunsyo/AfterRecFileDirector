@@ -66,7 +66,7 @@ namespace RVMCore
         [DataMember]
         public string EPG_BaseFolder = "Cache";
         [DataMember]
-        public string Mirakurun_ServiceAddr = "localhost:40772";
+        public string Mirakurun_ServiceAddr = "http://localhost:40772/";
         public string GetFolderTag(ProgramGenre ge)
         {
             string myResult = string.Empty;

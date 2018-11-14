@@ -34,6 +34,7 @@ namespace RVMCore.GoogleWarpper
         public Google.Apis.Drive.v3.Data.File Root { get; private set; }
 
         private ulong _MaxBytesPerSecond=0;
+
         /// <summary>
         /// Speed control, Acceptable minimum value is 256*1024. if disable speed control set value to 0.
         /// </summary>
@@ -436,7 +437,9 @@ namespace RVMCore.GoogleWarpper
                 }));
                 if(checkMD5)tgMD5.Start();
                 string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
-                var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", fileNameWithExtension.CheckStringForQuerry(), parentID.First());
+                var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", 
+                                                fileNameWithExtension.CheckStringForQuerry(), 
+                                                parentID.First());
                 if (fList == null || fList.Count() == 0)
                 {
                     if (tgMD5.IsAlive) mTokenSource.Cancel();
