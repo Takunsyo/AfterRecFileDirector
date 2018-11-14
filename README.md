@@ -40,6 +40,8 @@ AfterRecFileDirector.exe -mirakurun
 
 - メディアを動画で表示するための[Sascha-L/WPF-MediaKit](https://github.com/Sascha-L/WPF-MediaKit)
 
+- Json解析用に[JamesNK/Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) aka Json.Net
+
 - DirectShowでいろいろ試そうとして引用した(こちらはDllではなくコードをコピペして少し編集しました)[DirectShowNET Library
 ](http://directshownet.sourceforge.net)
 
