@@ -32,11 +32,17 @@ AfterRecFileDirector.exe -mirakurun
 
 マイクロソフトのOneDriveへの対応も開発していますが、時間がかかりそうです。
 
-本プロジェクトで引用したライブラリーは以下の通りです：
-DLLをできるだけ一つに纏まるため引用[Fody/Costura](https://github.com/Fody/Costura)
-ログを作るた[apache/log4net](https://logging.apache.org/log4net/)
-メディアを動画で表示するための[Sascha-L/WPF-MediaKit](https://github.com/Sascha-L/WPF-MediaKit)
-DirectShowでいろいろ試そうとして引用した(こちらはDllではなくコードをコピペして少し編集しました)[DirectShowNET Library
+#### 本プロジェクトで引用したライブラリーは以下の通りです：
+
+- DLLをできるだけ一つに纏まるため引用[Fody/Costura](https://github.com/Fody/Costura)
+
+- ログを作るた[apache/log4net](https://logging.apache.org/log4net/)
+
+- メディアを動画で表示するための[Sascha-L/WPF-MediaKit](https://github.com/Sascha-L/WPF-MediaKit)
+
+- DirectShowでいろいろ試そうとして引用した(こちらはDllではなくコードをコピペして少し編集しました)[DirectShowNET Library
 ](http://directshownet.sourceforge.net)
-その他グーグルドライブ用に[Google.Apis.Drive.v3]、マイクロソフトワンドライブ用に[Microsoft.OneDrive.Sdk]等をも引用しました。
-バイナリやコードを引用したわけではないが、作動に欠けないものとして[Chinachu/Mirakurun](https://github.com/Chinachu/Mirakurun)の働きがすべてのデータを提供しています。
+
+- その他グーグルドライブ用に[Google.Apis.Drive.v3]、マイクロソフトワンドライブ用に[Microsoft.OneDrive.Sdk]等をも引用しました。
+
+- バイナリやコードを引用したわけではないが、作動に欠けないものとして[Chinachu/Mirakurun](https://github.com/Chinachu/Mirakurun)の働きがすべてのデータを提供しています。
