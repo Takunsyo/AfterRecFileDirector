@@ -413,7 +413,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public bool RemoteFileExists(string fullFilePath, IEnumerable<string> parentID, bool checkMD5 = true)
+        public bool? RemoteFileExists(string fullFilePath, IEnumerable<string> parentID, bool checkMD5 = true)
         {
             if (parentID == null) parentID = new string[] { "root" };
             if (!System.IO.File.Exists(fullFilePath)) return false;
@@ -436,7 +436,7 @@ namespace RVMCore.GoogleWarpper
                     }
                 }));
                 if(checkMD5)tgMD5.Start();
-                string fileNameWithExtension = System.IO.Path.GetFileNameWithoutExtension(fullFilePath);
+                string fileNameWithExtension = System.IO.Path.GetFileName(fullFilePath);
                 var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", 
                                                 fileNameWithExtension.CheckStringForQuerry(), 
                                                 parentID.First());
@@ -444,6 +444,15 @@ namespace RVMCore.GoogleWarpper
                 {
                     if (tgMD5.IsAlive) mTokenSource.Cancel();
                     return false;
+                }
+                if (fList.Count() > 1 && !checkMD5) return null;
+                if(fList.Count() > 1)
+                {
+                    if (tgMD5.IsAlive) tgMD5.Join();
+                    foreach (var i in fList)
+                    {
+                        if (i.Md5Checksum == mMD5) return true;
+                    }
                 }
                 if (!checkMD5) return true;
                 if (tgMD5.IsAlive) tgMD5.Join();
@@ -463,7 +472,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public async Task<bool> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true)
+        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true)
         {
             return await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID,checkMD5));
         }
@@ -476,7 +485,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public bool RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
+        public bool? RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
         {
             if (remotePath!=null && !remotePath.IsNullOrEmptyOrWhiltSpace())
             {
@@ -497,7 +506,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public async Task<bool> RemoteFileExistsAsync(string fullFilePath, string remotePath = null)
+        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, string remotePath = null)
         {
             return await Task.Run(() => this.RemoteFileExists(fullFilePath, remotePath));
         }

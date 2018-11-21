@@ -100,6 +100,11 @@ namespace RVMCore.Forms
         {
             mView.DownItem(sender, e);
         }
+
+        private void Button_Click_3(object sender, RoutedEventArgs e)
+        {
+            mView.ResetThreads();
+        }
     }
 
 

@@ -56,6 +56,12 @@ namespace RVMCore
                 ElementHost.EnableModelessKeyboardInterop(wpfwindow);
                 if (wpfwindow.ShowDialog() == true) return true;
             }
+            if (margs.Any(x => x.Equals("-cloud", StringComparison.OrdinalIgnoreCase)))
+            {
+                var wpfwindow = new RVMCore.Forms.CloudViewer();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
+            }
             if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
             {
                 var wpfwindow = new RVMCore.Forms.Uploader();

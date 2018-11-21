@@ -31,8 +31,11 @@ namespace RVMCoreTest
             //var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
             //ElementHost.EnableModelessKeyboardInterop(wpfwindow);
             //if (wpfwindow.ShowDialog() == true) return;
-            RVMCore.TVAFT.SortFile(new string[] { "-mirakurun" });
+            //RVMCore.TVAFT.SortFile(new string[] { "-mirakurun" });
+            //RVMCore.TVAFT.SortFile(new string[] { "-upload" });
+            RVMCore.TVAFT.SortFile(new string[] { "-cloud" });
             //Application.Run(new RVMCore.Forms.Window1());
+
         }
     }
 

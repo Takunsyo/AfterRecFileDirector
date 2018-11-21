@@ -98,6 +98,10 @@
                 Click="Open_Click"
                 Margin="3,3" 
                 Grid.Column="0" Grid.Row="2"/>
+        <Button Content="ResetThread"
+                Margin="3"
+                HorizontalAlignment="Right"
+                Grid.Column="1" Grid.Row="2" Click="Button_Click_3"/>
         <TextBox TextWrapping="NoWrap" 
                    Text="{Binding Path=NowProcressingContent}" 
                    IsReadOnly="True" 

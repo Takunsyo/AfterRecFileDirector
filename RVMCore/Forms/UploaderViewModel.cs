@@ -135,13 +135,6 @@ namespace RVMCore.Forms
         {
             this.UploadWorkload = new System.Threading.ThreadStart(() =>
             {
-                //List<UploadFile> mList = new List<UploadFile>();
-                //var tfiles=System.IO.Directory.GetFiles(@"E:\9[Vault]","*.ts", System.IO.SearchOption.AllDirectories);
-                //foreach(string i in tfiles)
-                //{
-                //    mList.Add(i);
-                //    //Debugger.Break();
-                //}
                 do
                  {
                      ThreadControlName = "Pause";
@@ -154,8 +147,7 @@ namespace RVMCore.Forms
                      {
                         ex.Message.InfoLognConsole();
                     }
-                    //int index = FileList.FindIndex(x => x == local);
-                    if (this.mUpObj is null) return;
+                    if (this.mUpObj is null) break;
                     string remot = this.mUpObj.RemotePath;
                     MainName = "[Uploading]" + this.mUpObj.FileName;
                     NowProcressingContent = this.mUpObj;
@@ -164,10 +156,9 @@ namespace RVMCore.Forms
                     bool isSuccess = false;
                     if (!System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.mUpObj)))
                     {   
-                        if (!Service.RemoteFileExists(this.mUpObj, remot,false))
+                        if (!(bool)Service.RemoteFileExists(this.mUpObj, remot,false))
                         {
                             ProcessNowState = false;
-                            //FileList[index] = local;
                             isSuccess = this.mUpObj.Upload(Service);
                         }
                         else
@@ -181,16 +172,13 @@ namespace RVMCore.Forms
                         ProcessNowState = false;
                         isSuccess = this.mUpObj.Upload(Service);
                     }
-                //button1.Invoke(new Action(() => { button1.Enabled = true; }));
 
                     Processed += this.mUpObj.Length;
                     ProcessNow.SetValue(0, 0, "Done.");
-                    ThreadControlName = "Start";
-                    //this.progressBar1.Style = ProgressBarStyle.Blocks;
                     this.mUpObj.IsOver = isSuccess;
-                //FileList[index] = local;
                 } while (true);
-             });
+                ThreadControlName = "Start";
+            });
             this.mThread = new System.Threading.Thread(UploadWorkload);
             mThread.IsBackground = true;
             Service = new GoogleWarpper.GoogleDrive();
@@ -245,7 +233,8 @@ namespace RVMCore.Forms
         public void Start_Click(object sender, EventArgs e)
         {
             if (mThread == null || !mThread.IsAlive) { mThread = new System.Threading.Thread(UploadWorkload); mThread.Start(); return; }
-            if (mThread.ThreadState == System.Threading.ThreadState.Suspended || mThread.ThreadState == System.Threading.ThreadState.SuspendRequested)
+            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Unstarted)) return;
+            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Suspended)|| this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.SuspendRequested))
             {
                 //mThread.Resume();
                 this.mUpObj.Resume();
@@ -293,6 +282,22 @@ namespace RVMCore.Forms
             catch
             {
                 MessageBox.Show("Error");
+            }
+            this.TotalLength = FileList.Sum(x => x.Length);
+            this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0);
+        }
+
+        public void ResetThreads()
+        {
+            if (mThread != null && mThread.IsAlive)
+            {
+                if (mThread.IsAlive) mThread.Abort();
+                if (this.mUpObj.IsUploading)
+                    this.mUpObj.Abort();
+                Thread.Sleep(1000);
+                mThread = new Thread(UploadWorkload);
+                mThread.Start();
+                return;
             }
         }
 
@@ -573,6 +578,17 @@ namespace RVMCore.Forms
                 mWork.Resume();
             }
         }
+
+        public System.Threading.ThreadState ThreadState
+        {
+            get
+            {
+                if (mWork is null) return System.Threading.ThreadState.Unstarted;
+                return mWork.ThreadState;
+            }
+        }
+
+
         public static implicit operator UploadFile(string input)
         {
             return new UploadFile(input);

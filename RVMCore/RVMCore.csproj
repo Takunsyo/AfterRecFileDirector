@@ -188,6 +188,11 @@
     <Compile Include="MirakurunWarpper\StreamPriority.cs" />
     <Compile Include="OneDriveWarpper\AuthenticationProvider.cs" />
     <Compile Include="OneDriveWarpper\OneDrive.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="SettingObj.cs" />
     <Compile Include="ProgramGenre.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -196,6 +201,41 @@
     </Compile>
     <Compile Include="Share.cs" />
     <Compile Include="StreamFile.cs" />
+    <Compile Include="TelgeramBot\Apis\ApiBase.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Animation.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Audio.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\CallbackQuery.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Chat.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\ChatPhoto.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\ChosenInlineResult.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Contact.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Document.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\EncryptedCredentials.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\EncryptedPassportElement.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\File.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Game.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\InlineQuery.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Invoice.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Location.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\MaskPosition.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Message.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\MessageEntity.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\OrderInfo.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\PassportData.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\PassportFile.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\PhotoSize.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\PreCheckoutQuery.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\ShippingAddress.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\ShippingQuery.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Sticker.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\SuccessfulPayment.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Update.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\User.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Venue.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Video.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\VideoNote.cs" />
+    <Compile Include="TelgeramBot\Apis\Objects\Voice.cs" />
+    <Compile Include="TelgeramBot\Bot.cs" />
     <Compile Include="TVRockAFT.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -204,6 +244,10 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Settings.resx">
       <DependentUpon>Settings.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
