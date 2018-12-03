@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace RVMCore.MirakurunWarpper
 {
-
+    /// <summary>
+    /// The enum to dedicate priority of Mirakurun stream services.
+    /// </summary>
     public enum StreamPriority
     {
         /// <summary>

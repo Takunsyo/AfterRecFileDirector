@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Windows.Media;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading;
+using RVMCore.Forms;
 
-namespace RVMCore.Forms
+namespace RVMCore.GoogleWarpper
 {
     class UploaderViewModel : ViewModelBase, IDisposable
     {
@@ -120,6 +116,8 @@ namespace RVMCore.Forms
         }
         public ObservableCollection<UploadFile> FileList { get; set; }
 
+        private PipeServer<RmtFile> midObject;
+
         public bool IsWorking
         {
             get
@@ -133,6 +131,11 @@ namespace RVMCore.Forms
         }
         public UploaderViewModel()
         {
+            //Set a named pipe to accept commands from other instanes.
+            midObject = new PipeServer<RmtFile>("RVMCoreUploader");
+            midObject.PipeMessage += midObjectFileRecivedHdlr;
+            if(!midObject.StartListen())MessageBox.Show("Unable to dig pip holes.", "Error",  MessageBoxButtons.OK);
+            //Define uploading thread workload
             this.UploadWorkload = new System.Threading.ThreadStart(() =>
             {
                 do
@@ -185,6 +188,12 @@ namespace RVMCore.Forms
             FileList = new ObservableCollection<UploadFile>();
             Service.UpdateProgressChanged += new GoogleWarpper.UpdateProgress(mProcessHandller);
         }
+
+        private void midObjectFileRecivedHdlr(RmtFile e)
+        {
+            this.FileList.Add(e.FullFilePath);
+        } 
+
 
         //private:
         System.Threading.Thread mThread;
@@ -520,6 +529,16 @@ namespace RVMCore.Forms
         public void UpdateData()
         {
             this.NotifyPropertyChanged("ShowName");
+        }
+        private bool _uploadNow = true;
+        public bool UploadNow { get
+            {
+                return _uploadNow;
+            }
+            set
+            {
+                SetProperty(ref _uploadNow,value);
+            }
         }
 
         public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)

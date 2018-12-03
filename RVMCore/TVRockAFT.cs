@@ -1,24 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Security.AccessControl;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualBasic;
-using RVMCore;
-using Newtonsoft.Json;
-using System.Net;
 using RVMCore.EPGStationWarpper;
-using RVMCore.EPGStationWarpper.Api;
-using log4net;
 using System.Windows.Forms.Integration;
 
 namespace RVMCore
 {
     public static class TVAFT
     {
-        public static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
 
         public static bool IsNullOrEmptyOrWhiltSpace(this string input)
         {
@@ -27,7 +18,7 @@ namespace RVMCore
         
         public static bool SortFile(string[] margs)
         {
-            logger.Info("App started.");
+            "App started.".InfoLognConsole();
             SettingObj mySetting = null;
             bool a = false;
             while (!a)
@@ -43,7 +34,7 @@ namespace RVMCore
                 catch (Exception ex)
                 {
                     Console.WriteLine("Error : {0}", ex.Message);
-                    logger.ErrorFormat("Fail to read settings [{0}]",ex.Message);
+                    "Fail to read settings [{0}]".InfoLognConsole(ex.Message);
                     Console.WriteLine("Sleep 10 sec...");
                     System.Threading.Thread.Sleep(10000);
                 }
@@ -89,7 +80,7 @@ namespace RVMCore
                     else
                         sbb.AppendFormat(" {0}", p);
                 }
-                logger.InfoFormat("App start with parameter\"{0}\"",sbb.ToString());
+                "App start with parameter\"{0}\"".InfoLognConsole(sbb.ToString());
                 clPara.Add(sbb.ToString()); // Lack of the last run in the loop, so add the last parameter manuly.
                 int id = -1;
                 bool t_check= false;
@@ -103,7 +94,7 @@ namespace RVMCore
                 }
                 if (!t_check)
                 {//if -id is not working, try get enviroment variable. maybe not working.
-                    logger.Error("parameter -id not found or not a number.");
+                    "parameter -id not found or not a number.".ErrorLognConsole();
                     var e_id = Environment.GetEnvironmentVariable("RECORDEDID");
                     if (!e_id.IsNullOrEmptyOrWhiltSpace()&& !int.TryParse(e_id, out id))
                     {
@@ -111,7 +102,7 @@ namespace RVMCore
                         "App catch error. exiting...".InfoLognConsole();
                         return false;
                     }
-                    logger.InfoFormat("Environment Variable \"RECORDEDID={0}\"", id.ToString());
+                    "Environment Variable \"RECORDEDID={0}\"".InfoLognConsole(id.ToString());
                 }
                 Console.WriteLine("Preparing for access Epgstation server.");
                 mAccess = new EPGAccess(mySetting); 
@@ -301,34 +292,35 @@ namespace RVMCore
 
         private static bool MoveFile(StreamFile para, SettingObj mySetting,EPGAccess epgAccess = null)
         {
-            if (!System.IO.File.Exists(para.FilePath)) return false;
+            if (!System.IO.File.Exists(para.FilePath)) return false; // Ops! file is not there.
             string fileName = System.IO.Path.GetFileName(para.FilePath);
-            string[] FolderList = System.IO.Directory.GetDirectories(mySetting.StorageFolder);
+            string[] FolderList = System.IO.Directory.GetDirectories(mySetting.StorageFolder);//Get local preset base folder's child folers.
             string Targetfolder = mySetting.StorageFolder;
-            if (!string.IsNullOrWhiteSpace(mySetting.GetFolderTag(para.Genre)))
+            RmtFile mFile = new RmtFile();  // Object for Upload process
+            if (!string.IsNullOrWhiteSpace(mySetting.GetFolderTag(para.Genre))) 
             {
-                try // In case you dont find it or it does not exist
+                try //try get full path of genre folder.
                 {
                     Targetfolder = FolderList.First(x => Strings.InStr(x, mySetting.GetFolderTag(para.Genre)) > 0);
                 }
-                catch (Exception e)
+                catch (Exception e)// In case the preset genre folder is not there.
                 {
                     Targetfolder = System.IO.Path.Combine(mySetting.StorageFolder, mySetting.GetFolderTag(para.Genre));
                     Console.WriteLine(e.Message);
                 }
             }
-            if (!System.IO.Directory.Exists(Targetfolder))
+            if (!System.IO.Directory.Exists(Targetfolder)) //if genre folder is not there make one.
                 System.IO.Directory.CreateDirectory(Targetfolder);
             if (para.Genre.HasFlag(ProgramGenre.Anime) || para.Genre.HasFlag(ProgramGenre.Drama) || para.Genre.HasFlag(ProgramGenre.Variety))
-            {
-                string programName = Share.FindTitle(para.Title);
-                if (!programName.Equals(para.Title))
+            { // those programs has genre of anime drama or variety could be in series. if that is the case make a folder to hold them.
+                string programName = Share.FindTitle(para.Title); //find title.
+                if (!programName.Equals(para.Title)) // if the title find by program doesn't match it's full name means it's in a series.
                 {
                     FolderList = System.IO.Directory.GetDirectories(Targetfolder);
                     try // from here on is basicly copy plast the folder exist thing.
                     {
                         Targetfolder = FolderList.First(x =>
-                        {
+                        { // find a folder matchs series name
                             var str = x.Substring(x.LastIndexOf(@"\") + 1);
                             str = str.Substring(str.IndexOf("]") + 1);
                             return Strings.InStr(x, programName) > 0 ||
@@ -338,31 +330,46 @@ namespace RVMCore
                         });
                     }
                     catch (Exception e)
-                    {
+                    { //no match so far so make a one.
                         Targetfolder = System.IO.Path.Combine(Targetfolder, Share.GetTimeSpan(para.StartTime, para.StartTime) + programName);
                         Console.WriteLine("Try find folder : " + e.Message);
                     }
-
-                    Share.RenameDirUpToDate(ref Targetfolder, para.EndTime); // Here corrects the date things.
+                    mFile.FullFilePath = Targetfolder;
+                    //this will make sure the date period at the head of folder name is correct.
+                    Share.RenameDirUpToDate(ref Targetfolder, para.EndTime); 
+                    
+                    if (!Targetfolder.Equals(mFile.FullFilePath))
+                    {//this is for upload process . notify that the folder name has been changed.
+                        mFile.OldFatherName = mFile.FullFilePath;
+                        mFile.IsFatherUpdate = true;
+                        mFile.FullFilePath = Targetfolder;
+                    }
                     Console.WriteLine("Target folder is : " + Targetfolder);
                     if (!System.IO.Directory.Exists(Targetfolder))
                     {
                         System.IO.Directory.CreateDirectory(Targetfolder);
-                        logger.Info(string.Format("Create folder: {0}", Targetfolder));
+                        "Create folder: {0}".InfoLognConsole( Targetfolder);
                     }
                 }
+                //Move file to where it belongs. 
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
                 if (epgAccess == null)
-                {
+                {// if the epgAccess is null means this process is called by tvrock 
+                    //no need to get extra information from server.
+                    //XML file is standerd meta data format for tvrock for now.
                     para.ToXml(System.IO.Path.Combine(Targetfolder, fileName));
                 }
                 else
-                {
+                {// this process is called by epgstation or else.
+                    //information is from server, it will be stored in a 
+                    //*.meta file, it could also include a station logo and a thumbnail of video.
                     var tmp = para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
                     if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
-                OKBeep(mySetting);
+                //comit upload
+                Upload(mFile);
+                OKBeep(mySetting); // beep
             }
             else
             {
@@ -377,16 +384,63 @@ namespace RVMCore
                     var tmp = para.EPGStation.WtiteFile(System.IO.Path.Combine(Targetfolder, fileName));
                     if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
+                //Do upload same here..
+                Upload(mFile);
                 OKBeep(mySetting);
             }
             return true;
+        }
+        /// <summary>
+        /// Upload method *unstable* under test.
+        /// </summary>
+        /// <param name="file"><see cref="RmtFile"/> object.</param>
+        /// <param name="counter">fail counter.</param>
+        private static void Upload(RmtFile file, int counter = -1)
+        {
+            if (counter >= 3) "Failed to startup or connact to upload instance!".ErrorLognConsole();
+            var client = new RVMCore.PipeClient<RmtFile>();
+            for (int i = 0; i <= 3; i++)
+            { // try up to 4 times.
+                try
+                {
+                    client.Send(file, "RVMCoreUploader");
+                    return; // if success return.
+                }
+                catch (Exception ex)
+                {
+                    System.Threading.Thread.Sleep(1000);
+                    ex.Message.ErrorLognConsole();
+                }
+            }
+            // if it come to here. then there should be not a upload instance present. so strat one.
+            int pid = 0;
+            try
+            {
+                // this ProcessExtensions should help startup a instance to a user... ummmm..untested.
+                ProcessExtensions.StartProcessAsCurrentUser(System.Reflection.Assembly.GetEntryAssembly().Location, out pid);
+                "Uploader process has been lanchued, PID[{0}]".InfoLognConsole(pid);
+            }
+            catch(Exception ex)
+            {
+                "Failed to start upload process [{0}]".ErrorLognConsole(ex.Message);
+            }
+            System.Threading.Thread.Sleep(2000);
+            counter += 1; //Pass fail to counter. then run from first line.
+            Upload(file, counter);
+        }
+
+        public static void TestMethod()
+        {
+            int pid;
+            var path = @"E:\AfterRecFileDirector.exe -upload";
+            ProcessExtensions.StartProcessAsCurrentUser(path, out pid);
         }
 
         private static bool FileMovier(string old , string tar)
         {
             bool check = false;
             do
-            {
+            { //Check untill the file is accessible.
                 System.IO.FileStream stream = null;
                 try
                 {
@@ -407,14 +461,14 @@ namespace RVMCore
 
             try
             {
-                logger.Info(string.Format("Moving file to: {0}", System.IO.Path.GetDirectoryName(tar)));
+                "Moving file to: {0}".InfoLognConsole( System.IO.Path.GetDirectoryName(tar));
                 System.IO.File.Move(old, tar);
                 return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Error! " + e.Message);
-                logger.Error(e.Message);
+                e.Message.ErrorLognConsole();
                 return false;
             }
         }
@@ -465,28 +519,6 @@ namespace RVMCore
             return ProgramGenre.Default;
         }
 
-        public static void InfoLognConsole(this string message)
-        {
-            logger.Info(message);
-            Console.WriteLine(message);
-        }
 
-        public static void InfoLognConsole(this string format,params object[] args)
-        {
-            logger.InfoFormat(format, args);
-            Console.WriteLine(format, args);
-        }
-
-        public static void ErrorLognConsole(this string message)
-        {
-            logger.Error(message);
-            Console.WriteLine(message);
-        }
-
-        public static void ErrorLognConsole(this string format,params object[] args)
-        {
-            logger.ErrorFormat(format, args);
-            Console.WriteLine(format, args);
-        }
     }
 }

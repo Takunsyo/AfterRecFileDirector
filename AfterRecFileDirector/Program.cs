@@ -206,7 +206,7 @@ namespace AfterRecFileDirector
             {
                 Show5S();
             }
-            if (!(args.Length >= 1 && args[0].ToLower() == "-upload" ))
+            if (!(args.Length >= 1 && args[0].StartsWith("-")))
             {
                 FreeConsole();
                 ShowWindow(mHwnd, SW_SHOW);
@@ -291,33 +291,34 @@ namespace AfterRecFileDirector
             }
         }
 
+        [Obsolete("This method is deprecated, no one want to see 5s stuff anymore.",false)]
         private static void Show5S()
         {
+            System.Text.StringBuilder s = new System.Text.StringBuilder();
+            s.AppendLine("改善生产现场环境、提升生产效率、保障产品品质、营造快乐的工作环境，今天你实施5S了吗？");
+            s.AppendLine("");
+            s.AppendLine("什么是5S？");
+            s.AppendLine("5S就是整理（SEIRI）、整顿（SEITON）、清扫（SEISO）、清洁（SEIKETSU）、素养（SHITSUKE）五个项目。");
+            s.AppendLine("没有实施5S的计算机，触目可及地就可感受到计算机的脏乱，到处可见的不知何用的文件，未经管理的大量数据。即使再高速的计算机也无法处理大量的无意义的数据，最终只会拖慢处理速度。");
+            s.AppendLine("1S-整理");
+            s.AppendLine("定义：         区分要与不要的东西， 计算机内除了要用的东西以外， 一切都不下载、不生成。一个概略的判定原则， 是将未来30天内， 用不着的任何东西都可移出现场。");
+            s.AppendLine("目的： 将硬盘腾出来活用。");
+            s.AppendLine("2S-整顿");
+            s.AppendLine("定义：         要的东西依规定定位、定方法摆放整齐，明确数量，明确标示，既实现\"三定\"：定名、定量、定位。");
+            s.AppendLine("目的：不浪费\"时间\"找东西。");
+            s.AppendLine("3S-清扫");
+            s.AppendLine("定义：         清除计算机内的垃圾文件， 用过的东西无用即删。");
+            s.AppendLine("目的： 消除\"脏污\"， 保持硬盘没有碎片、运转畅快。");
+            s.AppendLine("4S-清洁");
+            s.AppendLine("定义：         将上面3S实施的做法制度化， 规范化， 维持其成果。");
+            s.AppendLine("目的： 通过制度化来维持成果。");
+            s.AppendLine("5S-素养");
+            s.AppendLine("定义：         培养文明礼貌习惯， 按规定行事， 养成良好的工作习惯。目的： 南无阿弥佗佛， 成为对任何工作都讲究认真的人。");
+            s.AppendLine("");
+            s.AppendLine("认真的你， 今天有做到5S吗？");
+            var title = "系统例行推销政策！请读完。";
             while (true)
             {
-                System.Text.StringBuilder s = new System.Text.StringBuilder();
-                s.AppendLine("改善生产现场环境、提升生产效率、保障产品品质、营造快乐的工作环境，今天你实施5S了吗？");
-                s.AppendLine("");
-                s.AppendLine("什么是5S？");
-                s.AppendLine("5S就是整理（SEIRI）、整顿（SEITON）、清扫（SEISO）、清洁（SEIKETSU）、素养（SHITSUKE）五个项目。");
-                s.AppendLine("没有实施5S的计算机，触目可及地就可感受到计算机的脏乱，到处可见的不知何用的文件，未经管理的大量数据。即使再高速的计算机也无法处理大量的无意义的数据，最终只会拖慢处理速度。");
-                s.AppendLine("1S-整理");
-                s.AppendLine("定义：         区分要与不要的东西， 计算机内除了要用的东西以外， 一切都不下载、不生成。一个概略的判定原则， 是将未来30天内， 用不着的任何东西都可移出现场。");
-                s.AppendLine("目的： 将硬盘腾出来活用。");
-                s.AppendLine("2S-整顿");
-                s.AppendLine("定义：         要的东西依规定定位、定方法摆放整齐，明确数量，明确标示，既实现\"三定\"：定名、定量、定位。");
-                s.AppendLine("目的：不浪费\"时间\"找东西。");
-                s.AppendLine("3S-清扫");
-                s.AppendLine("定义：         清除计算机内的垃圾文件， 用过的东西无用即删。");
-                s.AppendLine("目的： 消除\"脏污\"， 保持硬盘没有碎片、运转畅快。");
-                s.AppendLine("4S-清洁");
-                s.AppendLine("定义：         将上面3S实施的做法制度化， 规范化， 维持其成果。");
-                s.AppendLine("目的： 通过制度化来维持成果。");
-                s.AppendLine("5S-素养");
-                s.AppendLine("定义：         培养文明礼貌习惯， 按规定行事， 养成良好的工作习惯。目的： 南无阿弥佗佛， 成为对任何工作都讲究认真的人。");
-                s.AppendLine("");
-                s.AppendLine("认真的你， 今天有做到5S吗？");
-                var title = "系统例行推销政策！请读完。";
                 var box = MessageBox.Show(s.ToString(), title, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2, (MessageBoxOptions)0x40000);
                 if (box == DialogResult.Yes)
                     System.Environment.Exit(0);

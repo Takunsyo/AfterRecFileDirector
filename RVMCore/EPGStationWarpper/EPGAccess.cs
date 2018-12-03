@@ -56,7 +56,7 @@ namespace RVMCore.EPGStationWarpper
             catch(WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]",ex.Message);
+                "Network[{0}]".ErrorLognConsole(ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -130,7 +130,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole( ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -139,7 +139,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".ErrorLognConsole( cLen);
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
@@ -172,7 +172,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole( ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -180,7 +180,7 @@ namespace RVMCore.EPGStationWarpper
             {
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".ErrorLognConsole( cLen);
                 length = int.Parse(cLen);
                 return Image.FromStream(st);
             }
@@ -209,7 +209,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole( ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -217,7 +217,7 @@ namespace RVMCore.EPGStationWarpper
             {
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".InfoLognConsole(cLen);
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 return buffer;
@@ -306,7 +306,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole(ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -315,7 +315,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".InfoLognConsole(cLen);
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 string tmp = System.Text.Encoding.UTF8.GetString(buffer);
@@ -358,7 +358,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole(ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -367,7 +367,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".InfoLognConsole(cLen);
                 length = int.Parse(cLen);
                 //st.Position = 0;
                 return Image.FromStream(st);
@@ -397,7 +397,7 @@ namespace RVMCore.EPGStationWarpper
             catch (WebException ex)
             {
                 Console.WriteLine("Catch Error while GET api from server:");
-                TVAFT.logger.ErrorFormat("Network[{0}]", ex.Message);
+                "Network[{0}]".ErrorLognConsole(ex.Message);
                 Console.WriteLine(ex.Message);
                 return null;
             }
@@ -406,7 +406,7 @@ namespace RVMCore.EPGStationWarpper
                 var cLen = resp.Headers.Get("content-length");
                 if (string.IsNullOrWhiteSpace(cLen)) return null;
                 Console.WriteLine("Received data from EPGStation server. [Length:{0}]", cLen);
-                TVAFT.logger.InfoFormat("Receive data[Length:{0}]", cLen);
+                "Receive data[Length:{0}]".InfoLognConsole(cLen);
                 byte[] buffer = new byte[int.Parse(cLen)];
                 st.ReadAsync(buffer, 0, int.Parse(cLen));
                 return buffer;

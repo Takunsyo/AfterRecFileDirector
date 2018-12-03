@@ -151,6 +151,8 @@
     <Compile Include="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\RemoteObject.cs" />
+    <Compile Include="Forms\RmtFile.cs" />
     <Compile Include="Forms\MetaInfoView.xaml.cs">
       <DependentUpon>MetaInfoView.xaml</DependentUpon>
     </Compile>
@@ -159,13 +161,14 @@
     <Compile Include="Forms\Uploader.xaml.cs">
       <DependentUpon>Uploader.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Forms\UploaderViewModel.cs" />
+    <Compile Include="GoogleWarpper\UploaderViewModel.cs" />
     <Compile Include="Forms\CloudViewer.xaml.cs">
       <DependentUpon>CloudViewer.xaml</DependentUpon>
     </Compile>
     <Compile Include="Forms\ViewModelBase.cs" />
     <Compile Include="GoogleWarpper\GoogleDrive.cs" />
     <Compile Include="GoogleWarpper\MetaInfo.cs" />
+    <Compile Include="Logging.cs" />
     <Compile Include="MediaPlayer.cs" />
     <Compile Include="MirakurunWarpper\Apis\channel.cs" />
     <Compile Include="MirakurunWarpper\Apis\ChannelConfig.cs" />
@@ -188,6 +191,9 @@
     <Compile Include="MirakurunWarpper\StreamPriority.cs" />
     <Compile Include="OneDriveWarpper\AuthenticationProvider.cs" />
     <Compile Include="OneDriveWarpper\OneDrive.cs" />
+    <Compile Include="PipeClient.cs" />
+    <Compile Include="PipeServer.cs" />
+    <Compile Include="ProcessExtensions.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -256,9 +262,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="FodyWeavers.xml" />
-    <Content Include="Log4net.Config.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
   <ItemGroup>
     <Page Include="Forms\MetaInfoView.xaml">

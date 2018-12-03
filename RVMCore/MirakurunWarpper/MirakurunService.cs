@@ -25,6 +25,7 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         public Uri ServiceAddr { get; private set; }
 
+        #region Static Methods
         /// <summary>
         /// Get a UNIX Timestamp from a specific DateTime object.
         /// <para>*TimeStamp is counted in milliseconds.</para>
@@ -52,8 +53,9 @@ namespace RVMCore.MirakurunWarpper
         {
             return new DateTime(1970, 1, 1).AddMilliseconds(UNIXTimeStamp);
         }
+        #endregion
 
-        #region"Init"
+        #region Init
         /// <summary>
         /// Initialize a new instance of <see cref="MirakurunService"/>
         /// with <see cref="SettingObj"/> specify a setting include the
@@ -99,7 +101,7 @@ namespace RVMCore.MirakurunWarpper
         }
         #endregion
 
-        #region"private methods"
+        #region private methods 
         private enum RequestMethods {
             GET,
             PUT,
@@ -1466,14 +1468,24 @@ namespace RVMCore.MirakurunWarpper
             }
         }
         #endregion
+
+        #region IDisposable Support
+        /// <summary>
+        /// Show this object is Disposed or not.
+        /// </summary>
         public bool IsDisposed { get; private set; } = false;
+        /// <summary>
+        /// Release resource in this object.
+        /// </summary>
         public void Dispose()
         {
+            //if (this.IsDisposed) return; //Redo dispose make no hurts, let them do it.
             if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) eventSubscribeThread.Abort();
             if((eventSubscribeCancellationTokenSource is null)) eventSubscribeCancellationTokenSource.Dispose();
             if (!(logSubscribeThread is null) && logSubscribeThread.IsAlive) logSubscribeThread.Abort();
             if(!(logSubscribeCancellationTokenSource is null))logSubscribeCancellationTokenSource.Dispose();
             IsDisposed = true;
         }
+        #endregion
     }
 }
