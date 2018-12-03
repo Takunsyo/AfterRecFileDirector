@@ -17,12 +17,29 @@ namespace RVMCore.MirakurunWarpper
         public MirakurunViewerView()
         {
             //services = new MirakurunService("http://127.0.0.1:40772/");
-            services = new MirakurunService(SettingObj.Read());
+            try
+            {
+                services = new MirakurunService(SettingObj.Read());
+            }
+            catch(System.Net.WebException ex)
+            {
+                System.Windows.MessageBox.Show(ex.Message+
+                    "\nPlease make sure server is up online."+
+                    "\nServer_ADDR:[" + SettingObj.Read().Mirakurun_ServiceAddr +"]", 
+                    "ERROR",
+                    System.Windows.MessageBoxButton.OK, 
+                    System.Windows.MessageBoxImage.Error);
+                Environment.Exit(1);
+            }
+            catch
+            {
+                Environment.Exit(1);
+            }
             _ChannelList = new Dictionary<ChannelType, ObservableCollection<Apis.Service>>();
             _ChannelList.Add(ChannelType.GR, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.GR)));
             _ChannelList.Add(ChannelType.BS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.BS)));
             _ChannelList.Add(ChannelType.CS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.CS)));
-            _ChannelList.Add(ChannelType.SKY, new ObservableCollection<Apis.Service>());
+            _ChannelList.Add(ChannelType.SKY, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.SKY)));
         }
         private MirakurunService services;
         private List<Apis.Program> ProgramsBank;

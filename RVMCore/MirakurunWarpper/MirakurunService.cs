@@ -25,6 +25,8 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         public Uri ServiceAddr { get; private set; }
 
+        public ServerVersion Version { get; private set; }
+
         #region Static Methods
         /// <summary>
         /// Get a UNIX Timestamp from a specific DateTime object.
@@ -64,6 +66,7 @@ namespace RVMCore.MirakurunWarpper
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="ArgumentException">
         /// Thrown when setting doesn't include server address.</exception>
+        /// <exception cref="WebException">Throw when server returns error.</exception>
         /// <param name="setting">
         /// A setting include a address direct to Mirakurun Server</param>
         public MirakurunService(SettingObj setting)
@@ -72,6 +75,9 @@ namespace RVMCore.MirakurunWarpper
             if (setting.Mirakurun_ServiceAddr.IsNullOrEmptyOrWhiltSpace())
                 throw new ArgumentException("Invalid Setting: /n Setting doesn't include server address.");
             this.ServiceAddr = new Uri(setting.Mirakurun_ServiceAddr);
+            Exception e;
+            this.Version = this.GetServerVersion(out e);
+            if (e != null) throw e;
         }
 
         /// <summary>
@@ -80,6 +86,7 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Thrown when ServAddr is null or is a invalid uri string.</exception>
+        /// <exception cref="WebException">Throw when server returns error.</exception>
         /// <param name="ServAddr">A uri string direct to Mirakurun server root.</param>
         public MirakurunService(string ServAddr)
         {
@@ -88,20 +95,28 @@ namespace RVMCore.MirakurunWarpper
             if (!Uri.IsWellFormedUriString(ServAddr, UriKind.RelativeOrAbsolute))
                 throw new InvalidOperationException("Uri string is invalid.");
             this.ServiceAddr = new Uri(ServAddr);
+            Exception e;
+            this.Version = this.GetServerVersion(out e);
+            if (e != null) throw e;
         }
 
         /// <summary>
         /// Initialize a new instance of <see cref="MirakurunService"/>
         /// with a <see cref="Uri"/> direct to Mirakurun server root.
         /// </summary>
+        /// <exception cref="WebException">Throw when server returns error.</exception>
         /// <param name="ServAddr">Uri to Mirakurun server root.</param>
         public MirakurunService(Uri ServAddr)
         {
             this.ServiceAddr = ServiceAddr;
+            Exception e;
+            this.Version = this.GetServerVersion(out e);
+            if (e != null) throw e;
         }
         #endregion
 
         #region private methods 
+
         private enum RequestMethods {
             GET,
             PUT,
@@ -1463,6 +1478,36 @@ namespace RVMCore.MirakurunWarpper
                     var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
                     var json = JsonConvert.DeserializeObject<@default>(mbody);
                     "Failed to get version! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    req.Abort();
+                    return null;
+            }
+        }
+        /// <summary>
+        /// Get server version infomations.
+        /// <para>GET /version</para>
+        /// </summary>
+        /// <returns></returns>
+        private ServerVersion GetServerVersion(out Exception e)
+        {
+            e = null;
+            Uri ub = new Uri(ServiceAddr, "/api/version");
+            var req = InitWebRequest(ub);
+            HttpWebResponse rep = GettingResponse(ref req);
+            if (rep == null) {
+                e = new WebException("Unable to reach server.",WebExceptionStatus.SendFailure);
+                return null;
+            }
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    var body = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    req.Abort();
+                    return JsonConvert.DeserializeObject<ServerVersion>(body);
+                default:
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to get version! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    e = new WebException(string.Format("[{0}]{1}",json.code,json.reason),WebExceptionStatus.Success);
                     req.Abort();
                     return null;
             }
