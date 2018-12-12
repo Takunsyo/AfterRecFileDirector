@@ -192,15 +192,16 @@ namespace AfterRecFileDirector
             if (args.Length <= 0)
             {
                 Console.WriteLine("No argument found, App will run on Winform Mode.");
-                if (mySetting.AllowBeep)
-                    Console.Beep(550, 200);
-                FreeConsole();
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                //Application.Run(new MainWindow());
-                System.Type MainWindow = RVMCore.GetType("RVMCore.MainWindow");
-                Application.Run((Form)Activator.CreateInstance(MainWindow));
-                return;
+                //if (mySetting.AllowBeep)
+                //    Console.Beep(550, 200);
+                //FreeConsole();
+                //Application.EnableVisualStyles();
+                //Application.SetCompatibleTextRenderingDefault(false);
+                ////Application.Run(new MainWindow());
+                //System.Type MainWindow = RVMCore.GetType("RVMCore.MainWindow");
+                //Application.Run((Form)Activator.CreateInstance(MainWindow));
+                //return;
+                args = new string[] { "-main" };
             }
             if (args.Length >= 1 && args[0].ToUpper() == "5S")
             {

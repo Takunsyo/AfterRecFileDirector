@@ -314,10 +314,8 @@ namespace RVMCore.GoogleWarpper
         /// <para>More information: <a cref="https://developers.google.com/drive/api/v3/search-parameters">Api refence</a></para></param>
         /// <param name="arg0"></param>
         /// <returns></returns>
-        public IEnumerable<File> GetGoogleFiles(string querryformat, params object[] arg0)
-        {
-            return GetGoogleFiles(string.Format(querryformat, arg0));
-        }
+        public IEnumerable<File> GetGoogleFiles(string querryformat, params object[] arg0)=> GetGoogleFiles(string.Format(querryformat, arg0));
+        
 
         /// <summary>
         /// Get a <see cref="File"/> object to represent the folder identified by a Path. 
@@ -402,7 +400,7 @@ namespace RVMCore.GoogleWarpper
                 ex.Message.ErrorLognConsole();
                 "Unable to generate ID from google server.".ErrorLognConsole();
             }
-            return (mIDS == null) ? null : mIDS.Ids.First();
+            return mIDS?.Ids.First();
         }
         
         /// <summary>
@@ -440,7 +438,7 @@ namespace RVMCore.GoogleWarpper
                 var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", 
                                                 fileNameWithExtension.CheckStringForQuerry(), 
                                                 parentID.First());
-                if (fList == null || fList.Count() == 0)
+                if ((fList?.Count() ?? 0) == 0)
                 {
                     if (tgMD5.IsAlive) mTokenSource.Cancel();
                     return false;
@@ -456,12 +454,8 @@ namespace RVMCore.GoogleWarpper
                 }
                 if (!checkMD5) return true;
                 if (tgMD5.IsAlive) tgMD5.Join();
-                foreach (File i in fList)
-                {
-                    if (i.Md5Checksum == mMD5) return true;
-                }
+                return fList.Any(x => x.Md5Checksum == mMD5);
             }
-            return false;
         }
 
         /// <summary>
@@ -487,7 +481,7 @@ namespace RVMCore.GoogleWarpper
         /// <returns></returns>
         public bool? RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
         {
-            if (remotePath!=null && !remotePath.IsNullOrEmptyOrWhiltSpace())
+            if (!(remotePath?.IsNullOrEmptyOrWhiltSpace() ?? true))
             {
                 var parID = this.GetGoogleFolderByPath(remotePath);
                 return this.RemoteFileExists(fullFilePath, new string[] { parID.Id },checkMD5);
@@ -551,14 +545,15 @@ namespace RVMCore.GoogleWarpper
                 {//Start upload process
                     if (this.MaxBytesPerSecond != 0)
                     {
-                        if(SpeedControl == null || !SpeedControl.IsRunning) { 
+                        if(!(SpeedControl?.IsRunning ?? false))
+                        { 
                             SpeedControl = new Stopwatch();
                             SpeedControl.Start();
                         }
                     }
                     else
                     {
-                        if(SpeedControl !=null) SpeedControl.Stop();
+                        SpeedControl?.Stop();
                         SpeedControl = null;
                     }
                     mWatch.Restart();
@@ -663,11 +658,7 @@ namespace RVMCore.GoogleWarpper
                             }
                             evaSpeed.Add(msp);
                             if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                            try
-                            {
-                                UpdateProgressChanged.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
-                            }
-                            catch { }
+                            UpdateProgressChanged?.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
                             break;
                         case 500:
                         case 502:
@@ -724,7 +715,7 @@ namespace RVMCore.GoogleWarpper
                             //Other message maybe Errors.
                     }
                     rep.Close();
-                    if (this.MaxBytesPerSecond != 0 && SpeedControl != null && SpeedControl.IsRunning) { 
+                    if (this.MaxBytesPerSecond != 0 && (SpeedControl?.IsRunning ?? false)) { 
                         spdCnt += counter;
                         if (spdCnt >= (long)this.MaxBytesPerSecond)
                         {
@@ -741,15 +732,24 @@ namespace RVMCore.GoogleWarpper
                     if (counter != 0)
                     {
                         speed = (int)(counter / mWatch.ElapsedMilliseconds * 1000);
+                        var packetMilisec = mWatch.ElapsedMilliseconds;
+                        if(MaxBytesPerSecond != 0)
+                        {
+                            if(speed > (int)MaxBytesPerSecond)
+                                chunkSize = (int)MaxBytesPerSecond;
+                            else
+                                chunkSize = speed;
+                        }
+                        else
+                            chunkSize = (int)(speed * 0.8);
+                        if(chunkSize < 256 * 1024)
+                            chunkSize = 256 * 1024;
                     }
                     evaSpeed.Add(speed);
                     if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                    try { 
-                    UpdateProgressChanged.Invoke(byteCnt, sr.Length, (int)evaSpeed.Average());
-                    }
-                    catch { }
+                    UpdateProgressChanged?.Invoke(byteCnt, sr.Length, (int)evaSpeed.Average());
                 }
-                if(SpeedControl != null)SpeedControl.Stop();
+                SpeedControl?.Stop();
             }
             else
             {   //This is the first time tring to oupload this file.
@@ -883,7 +883,7 @@ namespace RVMCore.GoogleWarpper
                         sw.Read(buffer, 0, chunkSize);
                     }
                     md5.TransformBlock(buffer, 0, buffer.Length, buffer, 0);
-                    UpdateProgressChanged.Invoke(sw.Position, (long)mFile.Size, 0);
+                    UpdateProgressChanged?.Invoke(sw.Position, (long)mFile.Size, 0);
                     if (sw.Position == sw.Length) break;
                 } while (true);
             }
@@ -985,7 +985,7 @@ namespace RVMCore.GoogleWarpper
                 }
                 evaSpeed.Add(speed);
                 if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                UpdateProgressChanged.Invoke(sw.Position, (long)mFile.Size, (int)evaSpeed.Average());
+                UpdateProgressChanged?.Invoke(sw.Position, (long)mFile.Size, (int)evaSpeed.Average());
                 if (mChunk != chunkSize) break;
             } while (true);
             sw.Close();

@@ -88,21 +88,25 @@ namespace RVMCore
                 patternLayout.ConversionPattern = @"%-5level %date{yyyy/MM/dd_HH:mm:ss,fff} [%thread]] - %message%newline";
                 patternLayout.ActivateOptions();
 
-                log4net.Filter.LevelRangeFilter rangeFilter = new log4net.Filter.LevelRangeFilter();
-                rangeFilter.LevelMax = Level.Fatal;
-                rangeFilter.LevelMin = Level.Info;
+                log4net.Filter.LevelRangeFilter rangeFilter = new log4net.Filter.LevelRangeFilter
+                {
+                    LevelMax = Level.Fatal,
+                    LevelMin = Level.Info
+                };
                 rangeFilter.ActivateOptions();
 
                 //MainLogger.(in log4net root)
-                RollingFileAppender mainRoller = new RollingFileAppender();
-                mainRoller.AppendToFile = true; //Save all log to the same file.
-                mainRoller.RollingStyle = RollingFileAppender.RollingMode.Date; //Make a new log file every day.
-                mainRoller.File = @"logs\mainlog.log";
-                mainRoller.Layout = patternLayout;
-                mainRoller.LockingModel = new FileAppender.MinimalLock();
-                mainRoller.MaxSizeRollBackups = 10;
-                mainRoller.MaximumFileSize = "1000KB";
-                mainRoller.StaticLogFileName = true;
+                RollingFileAppender mainRoller = new RollingFileAppender
+                {
+                    AppendToFile = true, //Save all log to the same file.
+                    RollingStyle = RollingFileAppender.RollingMode.Date, //Make a new log file every day.
+                    File = @"logs\mainlog.log",
+                    Layout = patternLayout,
+                    LockingModel = new FileAppender.MinimalLock(),
+                    MaxSizeRollBackups = 10,
+                    MaximumFileSize = "1000KB",
+                    StaticLogFileName = true
+                };
                 mainRoller.AddFilter(rangeFilter); //don't know what this does. I think I should put it here anyway.
                 mainRoller.ActivateOptions();
                 hierarchy.Root.AddAppender(mainRoller);
@@ -113,14 +117,16 @@ namespace RVMCore
 
 
                 //Uploader Logger.
-                RollingFileAppender UploadRoller = new RollingFileAppender();
-                UploadRoller.AppendToFile = true;
-                UploadRoller.RollingStyle = RollingFileAppender.RollingMode.Date;
-                UploadRoller.File = @"logs\Uploader.log";
-                UploadRoller.Layout = patternLayout;
-                UploadRoller.MaxSizeRollBackups = 10;
-                UploadRoller.MaximumFileSize = "1GB";
-                UploadRoller.StaticLogFileName = true;
+                RollingFileAppender UploadRoller = new RollingFileAppender
+                {
+                    AppendToFile = true,
+                    RollingStyle = RollingFileAppender.RollingMode.Date,
+                    File = @"logs\Uploader.log",
+                    Layout = patternLayout,
+                    MaxSizeRollBackups = 10,
+                    MaximumFileSize = "1GB",
+                    StaticLogFileName = true
+                };
                 UploadRoller.AddFilter(rangeFilter);
                 UploadRoller.ActivateOptions();
                 //Add make a new logger that use this config.
@@ -131,15 +137,17 @@ namespace RVMCore
                 uploadLogger.Repository.Configured = true;
 
                 //Ohter logs will all go here.
-                RollingFileAppender OtherLogs = new RollingFileAppender();
-                OtherLogs.AppendToFile = true;
-                OtherLogs.RollingStyle = RollingFileAppender.RollingMode.Date;
-                OtherLogs.File = @"logs\Others.log";
-                OtherLogs.Layout = patternLayout;
-                OtherLogs.LockingModel = new FileAppender.MinimalLock(); //this should allow mutiple instances writing to same file.
-                OtherLogs.MaxSizeRollBackups = 10;
-                OtherLogs.MaximumFileSize = "1GB";
-                OtherLogs.StaticLogFileName = true;
+                RollingFileAppender OtherLogs = new RollingFileAppender
+                {
+                    AppendToFile = true,
+                    RollingStyle = RollingFileAppender.RollingMode.Date,
+                    File = @"logs\Others.log",
+                    Layout = patternLayout,
+                    LockingModel = new FileAppender.MinimalLock(), //this should allow mutiple instances writing to same file.
+                    MaxSizeRollBackups = 10,
+                    MaximumFileSize = "1GB",
+                    StaticLogFileName = true
+                };
                 OtherLogs.AddFilter(rangeFilter);
                 OtherLogs.ActivateOptions();
 

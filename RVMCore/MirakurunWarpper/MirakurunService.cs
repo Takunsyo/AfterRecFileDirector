@@ -166,11 +166,7 @@ namespace RVMCore.MirakurunWarpper
             return req;
         }
 
-        private static HttpWebResponse GettingResponse(ref HttpWebRequest request)
-        {
-            Exception e;
-            return GettingResponse(ref request,out e);
-        }
+        private static HttpWebResponse GettingResponse(ref HttpWebRequest request)=>GettingResponse(ref request,out _);
 
         private static HttpWebResponse GettingResponse(ref HttpWebRequest request , out Exception e)
         {
@@ -193,21 +189,13 @@ namespace RVMCore.MirakurunWarpper
 
         private static string GetResponseBodyString(ref HttpWebResponse response,Encoding encoding, bool CloseAfterWork = true)
         {
-            if (response == null || response.ContentLength <= 0) return null;
+            if ((response?.ContentLength ?? 0) <= 0 ) return null;
             using (var reader = new System.IO.StreamReader(response.GetResponseStream(), encoding))
             {
                 var tmp = reader.ReadToEnd();
                 if(CloseAfterWork)response.Close();
                 return tmp;
             }
-            //using (var st = response.GetResponseStream())
-            //{                
-            //    var len = response.ContentLength;
-            //    byte[] buffer = new byte[len];
-            //    st.Read(buffer, 0, buffer.Length);
-            //    //response.Close();
-            //    return encoding.GetString(buffer);
-            //}
         }
         #endregion
 
@@ -827,20 +815,7 @@ namespace RVMCore.MirakurunWarpper
         /// <summary>
         /// Show if is event informations being watched.
         /// </summary>
-        public bool IsEventSubscribed
-        {
-            get
-            {
-                if(eventSubscribeThread is null || !eventSubscribeThread.IsAlive)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;    
-                }
-            }
-        }
+        public bool IsEventSubscribed => eventSubscribeThread?.IsAlive ?? false;
         /// <summary>
         /// Current watching event's type.
         /// </summary>
@@ -860,9 +835,10 @@ namespace RVMCore.MirakurunWarpper
         /// <para>When information recived a <see cref="EventRecived"/> event will be raised.</para>
         /// GET /events/stream
         /// </summary>
+        /// <param name="FailedCallback">Callback delegate in case of failed subscribe.</param>
         /// <param name="type"></param>
         /// <param name="resource"></param>
-        public void SubscribeEvents(EventType? type = null,ResourceType? resource = null)
+        public void SubscribeEvents(Action<object>FailedCallback = default, EventType? type = null,ResourceType? resource = null)
         {
             if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) return;
             var workLoad = new ThreadStart(new Action(() => {
@@ -874,7 +850,7 @@ namespace RVMCore.MirakurunWarpper
                 var req = InitWebRequest(ub.ToString());
                 req.Timeout = Timeout.Infinite;
                 var rep = GettingResponse(ref req);
-                if (rep == null) return;
+                if (rep == null) { FailedCallback?.Invoke(this); return; }
                 switch ((int)rep.StatusCode)
                 {
                     case 200:
@@ -906,8 +882,9 @@ namespace RVMCore.MirakurunWarpper
                                     //System.Diagnostics.Trace.WriteLine(resultLine);
                                     if (!resultLine.StartsWith("{")) continue;
                                     var tmp = JsonConvert.DeserializeObject<Event>(resultLine);
-                                    this.EventRecived.Invoke(this, tmp);
+                                    this.EventRecived?.Invoke(this, tmp);
                                 }
+                                FailedCallback?.Invoke(this);
                             }
                             catch (OperationCanceledException)
                             {
@@ -919,6 +896,7 @@ namespace RVMCore.MirakurunWarpper
                         var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
                         var json = JsonConvert.DeserializeObject<@default>(mbody);
                         "Failed to get event stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                        FailedCallback?.Invoke(this);
                         break;
                 }
                 req.Abort(); rep.Close();
@@ -934,11 +912,9 @@ namespace RVMCore.MirakurunWarpper
         /// Stop subscribe event informations.
         /// </summary>
         public void StopSubscribeEvents()
-        {
-            if (eventSubscribeCancellationTokenSource is null) return;
-            if (eventSubscribeThread is null) return;
-            eventSubscribeCancellationTokenSource.Cancel();
-            if (eventSubscribeThread.IsAlive) eventSubscribeThread.Abort();
+        {            
+            eventSubscribeCancellationTokenSource?.Cancel();
+            if (eventSubscribeThread?.IsAlive ??false) eventSubscribeThread.Abort();
         }
 
         #endregion
@@ -973,20 +949,7 @@ namespace RVMCore.MirakurunWarpper
         /// <summary>
         /// Show if is log being watched.
         /// </summary>
-        public bool IsLogSubscribed
-        {
-            get
-            {
-                if(logSubscribeThread is null || !logSubscribeThread.IsAlive)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-        }
+        public bool IsLogSubscribed => logSubscribeThread?.IsAlive ?? false;
         private Thread logSubscribeThread;
         private CancellationTokenSource logSubscribeCancellationTokenSource;
         /// <summary>
@@ -997,15 +960,16 @@ namespace RVMCore.MirakurunWarpper
         /// Start watch Mirakurun server logs.
         /// GET /log/stream
         /// </summary>
-        public void SubscribeLogs()
+        /// <param name="FailedCallback">Callback delegate in case of failed subscribe.</param>
+        public void SubscribeLogs(Action<object> FailedCallback = default)
         {
-            if (!(logSubscribeThread is null) && logSubscribeThread.IsAlive) return;
+            if (logSubscribeThread?.IsAlive ?? false) return;
             var workLoad = new ThreadStart(new Action(() => {
                 var ub = new Uri(ServiceAddr, "api/log/stream");
                 var req = InitWebRequest(ub);
                 req.Timeout = Timeout.Infinite;
                 var rep = GettingResponse(ref req);
-                if (rep == null) return;
+                if (rep == null) { FailedCallback?.Invoke(this); return; }
                 switch ((int)rep.StatusCode)
                 {
                     case 200:
@@ -1019,8 +983,9 @@ namespace RVMCore.MirakurunWarpper
                                 {
                                     logSubscribeCancellationTokenSource.Token.ThrowIfCancellationRequested();
                                     string resultLine = streadReader.ReadLine();
-                                    this.LogRecived.Invoke(this, resultLine);
+                                    this.LogRecived?.Invoke(this, resultLine);
                                 }
+                                FailedCallback?.Invoke(this);
                             }
                             catch (OperationCanceledException)
                             {
@@ -1032,6 +997,7 @@ namespace RVMCore.MirakurunWarpper
                         var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
                         var json = JsonConvert.DeserializeObject<@default>(mbody);
                         "Failed to subscript logs! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                        FailedCallback?.Invoke(this);
                         break;
                 }
                 req.Abort(); rep.Close();
@@ -1046,10 +1012,8 @@ namespace RVMCore.MirakurunWarpper
         /// </summary>
         public void StopSubscribeLogs()
         {
-            if (logSubscribeCancellationTokenSource is null) return;
-            if (logSubscribeThread is null) return;
-            logSubscribeCancellationTokenSource.Cancel();
-            if (logSubscribeThread.IsAlive) logSubscribeThread.Abort();
+            logSubscribeCancellationTokenSource?.Cancel();
+            if (logSubscribeThread?.IsAlive ?? false) logSubscribeThread.Abort();
         }
         #endregion
 
@@ -1525,10 +1489,10 @@ namespace RVMCore.MirakurunWarpper
         public void Dispose()
         {
             //if (this.IsDisposed) return; //Redo dispose make no hurts, let them do it.
-            if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) eventSubscribeThread.Abort();
-            if((eventSubscribeCancellationTokenSource is null)) eventSubscribeCancellationTokenSource.Dispose();
-            if (!(logSubscribeThread is null) && logSubscribeThread.IsAlive) logSubscribeThread.Abort();
-            if(!(logSubscribeCancellationTokenSource is null))logSubscribeCancellationTokenSource.Dispose();
+            if (eventSubscribeThread?.IsAlive ?? false) eventSubscribeThread.Abort();
+            eventSubscribeCancellationTokenSource?.Dispose();
+            if (logSubscribeThread?.IsAlive ?? false) logSubscribeThread.Abort();
+            logSubscribeCancellationTokenSource?.Dispose();
             IsDisposed = true;
         }
         #endregion

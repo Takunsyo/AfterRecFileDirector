@@ -10,10 +10,10 @@ namespace RVMCore.EPGStationWarpper
 {
     public class EPGMetaFile
     {
-        public Api.RecordedProgram Meta {
+        public Api.Program Meta {
             get
             {
-                return Api.RecordedProgram.Deserialize(this.mMeta);
+                return Api.Program.Deserialize(this.mMeta);
             }
             private set
             {
@@ -95,7 +95,7 @@ namespace RVMCore.EPGStationWarpper
             this.mThumb = tmp;
         }
 
-        public EPGMetaFile(EPGAccess access, Api.RecordedProgram obj)
+        public EPGMetaFile(EPGAccess access, Api.Program obj)
         {
             this.Meta = obj;
             this.mLogo = access.GetChannelLogoBytesByID(this.Meta.channelId);

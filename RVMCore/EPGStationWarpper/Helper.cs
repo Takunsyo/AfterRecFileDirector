@@ -10,12 +10,12 @@ namespace RVMCore.EPGStationWarpper
     public static class Helper
     {
         /// <summary>
-        /// Get <see cref="StreamFile"/> object from EPGStation's recorded file <see cref="RecordedProgram"/>.
+        /// Get <see cref="StreamFile"/> object from EPGStation's recorded file <see cref="Program"/>.
         /// </summary>
         /// <param name="body"></param>
         /// <param name="mEPG">A working access to EPGStation.</param>
         /// <returns></returns>
-        public static StreamFile GetStreamFileObj(this RecordedProgram body, EPGAccess mEPG)
+        public static StreamFile GetStreamFileObj(this Program body, EPGAccess mEPG)
         {
             if (body == null) return null;
             StreamFile mFile = new StreamFile();

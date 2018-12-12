@@ -21,6 +21,15 @@ namespace RVMCore.MirakurunWarpper
     public partial class MirakurunViewer : Window
     {
         MirakurunViewerView mView;
+
+        public MirakurunViewer(MirakurunViewerView view)
+        {
+            InitializeComponent();
+            mView = view;
+            this.DataContext = mView;
+
+        }
+
         public MirakurunViewer()
         {
             InitializeComponent();
@@ -28,6 +37,7 @@ namespace RVMCore.MirakurunWarpper
             this.DataContext = mView;
             
         }
+
         private void VolumeBar(object sender, MouseWheelEventArgs e)
         {
             Player.Volume += (e.Delta > 0) ? 0.1 : -0.1;

@@ -4,6 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfterRecFileDirector", "AfterRecFileDirector\AfterRecFileDirector.csproj", "{9D1EF56C-57BE-4D1F-A042-E852967CA984}"
+	ProjectSection(ProjectDependencies) = postProject
+		{04347B92-F457-4F76-9CF3-BF4248F459A5} = {04347B92-F457-4F76-9CF3-BF4248F459A5}
+		{7D8CF29E-80CC-4D6B-B664-C120FD8E8A6E} = {7D8CF29E-80CC-4D6B-B664-C120FD8E8A6E}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RVMCore", "RVMCore\RVMCore.csproj", "{04347B92-F457-4F76-9CF3-BF4248F459A5}"
 EndProject

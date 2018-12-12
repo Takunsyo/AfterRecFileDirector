@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -11,7 +9,7 @@ using RVMCore.Forms;
 
 namespace RVMCore.MirakurunWarpper
 {
-    class MirakurunViewerView : ViewModelBase
+    public class MirakurunViewerView : ViewModelBase
     {
 
         public MirakurunViewerView()
@@ -40,6 +38,11 @@ namespace RVMCore.MirakurunWarpper
             _ChannelList.Add(ChannelType.BS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.BS)));
             _ChannelList.Add(ChannelType.CS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.CS)));
             _ChannelList.Add(ChannelType.SKY, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.SKY)));
+            this.pTicks = new Timer();
+            this.pTicks.Interval = 1000;
+            this.pTicks.Elapsed += this.pTick_Tick;
+            this.pTicks.AutoReset = true;
+            this.pTicks.Start();
         }
         private MirakurunService services;
         private List<Apis.Program> ProgramsBank;
@@ -104,6 +107,7 @@ namespace RVMCore.MirakurunWarpper
             }
             this.NowProgram = tmp;
             NotifyPropertyChanged("Description");
+            NotifyPropertyChanged("EndTime");
             var v = this.NowProgram.startAt + this.NowProgram.duration - MirakurunService.GetUNIXTimeStamp();
             this.timer = new Timer();
             this.timer.AutoReset = true;
@@ -132,6 +136,7 @@ namespace RVMCore.MirakurunWarpper
             }
             this.NowProgram = tmp;
             NotifyPropertyChanged("Description");
+            NotifyPropertyChanged("EndTime");
             var v = this.NowProgram.startAt + this.NowProgram.duration - MirakurunService.GetUNIXTimeStamp();
             if (v <= 0) return;
             this.timer.Interval = v;
@@ -150,6 +155,30 @@ namespace RVMCore.MirakurunWarpper
                 SetProperty(ref _NowProgram, value);
             }
         }
+        private Timer pTicks;
+
+        private void pTick_Tick(object sender , EventArgs e)
+        {
+            NotifyPropertyChanged("TimeNow");
+        }
+
+        public long EndTime
+        {
+            get
+            {
+                return this.NowProgram == null ? 0 :(this.NowProgram.startAt + this.NowProgram.duration);
+            }
+        }
+
+        public long TimeNow
+        {
+            get
+            {
+                return MirakurunService.GetUNIXTimeStamp();
+            }
+        }
+
+
         private void GetPrograms(int serviceID)
         {
             this.ProgramsBank = new List<Apis.Program>( services.GetPrograms(serviceID:serviceID));

@@ -27,7 +27,7 @@ namespace RVMCoreTest
         {
         }
 
-        Thread mThread;
+        //Thread mThread;
         CancellationTokenSource ct = new CancellationTokenSource();
         MirakurunService access = new MirakurunService("http://127.0.0.1:40772");
 

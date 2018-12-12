@@ -1,11 +1,15 @@
 ﻿using Microsoft.VisualBasic;
 using System;
-using System.Collections.Generic;
+using System.ComponentModel;
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace RVMCore
 {
@@ -38,11 +42,9 @@ namespace RVMCore
                 var sQ = Strings.Split(mSpan[0], "'");
                 if (sQ[0].Contains("Q"))
                 {
-                    int Quarterly = 0;
-                    if (!int.TryParse(sQ[0].Substring(1, 1), out Quarterly))
+                    if (!int.TryParse(sQ[0].Substring(1, 1), out var Quarterly))
                         return mResult;
-                    int Years = 0;
-                    if (!int.TryParse(sQ[1], out Years))
+                    if (!int.TryParse(sQ[1], out var Years))
                         return mResult;
                     Quarterly = Quarterly * 3 - 2;
                     Years += 2000;
@@ -57,11 +59,10 @@ namespace RVMCore
                 var sQ = Strings.Split(mSpan[1], "'");
                 if (sQ[0].Contains("Q"))
                 {
-                    int Quarterly = 0;
-                    if (!int.TryParse(sQ[0].Substring(1, 1), out Quarterly))
+                    
+                    if (!int.TryParse(sQ[0].Substring(1, 1), out var Quarterly))
                         return mResult;
-                    int Years = 0;
-                    if (!int.TryParse(sQ[1], out Years))
+                    if (!int.TryParse(sQ[1], out var Years))
                         return mResult;
                     Quarterly = Quarterly * 3;
                     Years += 2000;

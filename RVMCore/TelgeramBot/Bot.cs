@@ -175,7 +175,6 @@ namespace RVMCore.TelgeramBot
                 default:
                     Console.WriteLine("Error");
                     return null;
-                    break;
             }
         }
     }

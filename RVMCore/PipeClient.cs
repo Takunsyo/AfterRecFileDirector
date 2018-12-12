@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
 
@@ -22,8 +20,8 @@ namespace RVMCore
                 Debug.WriteLine("[Client] Pipe connection established");
                 string SendStr = JsonConvert.SerializeObject(SendObj);
                 byte[] _buffer = Encoding.UTF8.GetBytes(SendStr);
-                //pipeStream.BeginWrite(_buffer, 0, _buffer.Length, AsyncSend, pipeStream);
-                pipeStream.Write(_buffer, 0, _buffer.Length);
+                pipeStream.BeginWrite(_buffer, 0, _buffer.Length, AsyncSend, pipeStream);
+                //pipeStream.Write(_buffer, 0, _buffer.Length);
             }
             catch (TimeoutException oEX)
             {

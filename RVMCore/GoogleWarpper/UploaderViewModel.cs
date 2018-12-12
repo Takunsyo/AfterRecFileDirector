@@ -9,7 +9,7 @@ using RVMCore.Forms;
 
 namespace RVMCore.GoogleWarpper
 {
-    class UploaderViewModel : ViewModelBase, IDisposable
+    public class UploaderViewModel : ViewModelBase, IDisposable
     {
         //public:
         private string mainname = "After record upload service GOOGLE DEMON.";

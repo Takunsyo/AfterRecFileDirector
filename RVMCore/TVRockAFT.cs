@@ -41,6 +41,12 @@ namespace RVMCore
             }
             EPGAccess mAccess = null;
             StreamFile mpars = null;
+            if (margs.Any(x => x.Equals("-main", StringComparison.OrdinalIgnoreCase)))
+            {
+                var wpfwindow = new MasterView.MasterViewControl();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
+            }
             if (margs.Any(x => x.Equals("-mirakurun", StringComparison.OrdinalIgnoreCase)))
             {
                 var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
@@ -417,7 +423,8 @@ namespace RVMCore
             try
             {
                 // this ProcessExtensions should help startup a instance to a user... ummmm..untested.
-                ProcessExtensions.StartProcessAsCurrentUser(System.Reflection.Assembly.GetEntryAssembly().Location, out pid);
+                ProcessExtensions.StartProcessAsCurrentUser(
+                    System.Reflection.Assembly.GetEntryAssembly().Location, out pid);
                 "Uploader process has been lanchued, PID[{0}]".InfoLognConsole(pid);
             }
             catch(Exception ex)
@@ -431,9 +438,8 @@ namespace RVMCore
 
         public static void TestMethod()
         {
-            int pid;
             var path = @"E:\AfterRecFileDirector.exe -upload";
-            ProcessExtensions.StartProcessAsCurrentUser(path, out pid);
+            ProcessExtensions.StartProcessAsCurrentUser(path, out var pid);
         }
 
         private static bool FileMovier(string old , string tar)

@@ -20,8 +20,6 @@
                 <x:Type TypeName="local:ChannelType" />
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
- 
-
     </Window.Resources>
 
     <Grid Margin="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
@@ -50,6 +48,13 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <ProgressBar Grid.Column="1" Grid.Row="0" Margin="1" 
+                     Minimum="{Binding Path=NowProgram.startAt,Mode=OneWay}" 
+                     Maximum="{Binding Path=EndTime,Mode=OneWay}" 
+                     Value="{Binding Path=TimeNow,Mode=OneWay}"
+                     Foreground="LightSkyBlue"
+                     Background="White"
+                     BorderBrush="LightSkyBlue"/>
         <TextBlock Grid.Column="1" Grid.Row="0" Margin="1" Text="{Binding NowProgram.name}">
             <TextBlock.ToolTip>
                 <ToolTip MaxWidth="400" Content="{Binding Description}" HasDropShadow="True">
@@ -58,11 +63,11 @@
             </TextBlock.ToolTip>
         </TextBlock>
         <controls:MediaUriElement x:Name="Player"  Margin="1"
-                      Grid.Column="1" Grid.Row="1" Grid.RowSpan="2"
+                      Grid.Column="1" Grid.Row="1" Grid.RowSpan="1"
                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
                       MouseWheel="VolumeBar" Source="{Binding ViewUri}"
                       OpacityMask="Black"/>
-        
+        <TextBox Margin="1" Grid.Column="1" Grid.Row="2" Text="{Binding Path=ViewUri,Mode=OneWay}" IsReadOnly="True"/>
     </Grid>
-    
+
 </Window>

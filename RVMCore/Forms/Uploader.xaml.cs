@@ -22,12 +22,20 @@ namespace RVMCore.Forms
     /// </summary>
     public partial class Uploader : Window
     {
-        private UploaderViewModel mView = new UploaderViewModel();
+        private UploaderViewModel mView;
+        private bool Destory;
+        public Uploader(UploaderViewModel view ,bool destoryViewWhenClose = true)
+        {
+            InitializeComponent();
+            this.mView = view;
+            this.DataContext = mView;
+            this.Destory = destoryViewWhenClose;
+        }
 
         public Uploader()
         {
             InitializeComponent();
-
+            mView = new UploaderViewModel();
             this.DataContext = mView;
             mView.NowProcressingContent = "Progress";
             //mView.ProcessBarTextNow = "Now procress 50%";
@@ -76,6 +84,7 @@ namespace RVMCore.Forms
 
         protected virtual void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (!this.Destory) return;
             if (mView.IsWorking) { 
                 if (MessageBoxResult.Yes != MessageBox.Show("Program is still uploading data. \n Are you SURE to EXIT?", "Yes", MessageBoxButton.YesNo, MessageBoxImage.Information))
                 {

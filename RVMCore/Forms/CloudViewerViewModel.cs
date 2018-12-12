@@ -140,7 +140,7 @@ namespace RVMCore.Forms
                     var ext = this.Text.Substring(this.Text.LastIndexOf('.'));
                     return GetFileIcon(ext, this.Expandible);
                 }
-                }
+            }
         }
 
         /// <summary>
@@ -236,7 +236,6 @@ namespace RVMCore.Forms
                         }
                         token = tuple.Item2;
                     } while (token != null);
-
                 }
             }
         }
