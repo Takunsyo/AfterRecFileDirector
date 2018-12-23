@@ -32,13 +32,11 @@ namespace RVMCoreTest
             //var wpfwindow = new RVMCore.Forms.Uploader();
             //var wpfwindow = new RVMCore.MasterView.MasterViewControl();
             //var wpfwindow = new RVMCore.Forms.CloudViewer();
-            //var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
-            //ElementHost.EnableModelessKeyboardInterop(wpfwindow);
-            //if (wpfwindow.ShowDialog() == true) return;
+            //var wpfwindow = new RVMCore.MasterView.Setting();
             //RVMCore.TVAFT.SortFile(new string[] { "-mirakurun" });
             //RVMCore.TVAFT.SortFile(new string[] { "-upload" });
             //RVMCore.TVAFT.SortFile(new string[] { "-cloud" });
-            RVMCore.TVAFT.SortFile(new string[] { "-main" });
+            //RVMCore.TVAFT.SortFile(new string[] { "-main" });
             //Application.Run(new RVMCore.Forms.Window1());
             //var client = new RVMCore.PipeClient<RmtFile>();
             //client.Send(new RmtFile(@"D:\SHARED\testfile.mp4"), "RVMCoreUploader");
@@ -48,6 +46,16 @@ namespace RVMCoreTest
             //{
             //    Debug.WriteLine(i.keyword);
             //}
+            //var mirakurun = new RVMCore.MirakurunWarpper.MirakurunService("http://192.168.0.2:40772/");
+            //var wpfwindow = new RVMCore.MasterView.MirakurunLogView(mirakurun);
+            //ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+            //if (wpfwindow.ShowDialog() == true) return;
+            foreach(var i in Share.GetFibonacciSequence())
+            {
+                if (i > 1000) break;
+                Console.WriteLine(i.ToString());
+            }
+
         }
     }
 

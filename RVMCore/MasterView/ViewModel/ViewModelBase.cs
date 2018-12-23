@@ -4,12 +4,13 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
 
-namespace RVMCore.Forms
-{
+namespace RVMCore.MasterView
+{    
     public abstract class ViewModelBase : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-
+        public event PropertyChangedEventHandler PropertyChanged = (sender,e)=> { };
+        #region Property Changed call methods.
+        [Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", true)]
         protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName]string propertyName = null)
         {
             if (!EqualityComparer<T>.Default.Equals(field, newValue))
@@ -20,17 +21,19 @@ namespace RVMCore.Forms
             }
             return false;
         }
+        [Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", true)]
         public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
+        [Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", false)]
         public void NotifyPropertyChanged([CallerMemberName] String propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+        #endregion
         protected ViewModelBase()
         {
             _dispatcher = Dispatcher.CurrentDispatcher;
         }
-
+        #region Multi thread UI
         /// <summary>
         /// Gets the dispatcher used by this view model to execute actions on the thread it is associated with.
         /// </summary>
@@ -63,5 +66,7 @@ namespace RVMCore.Forms
                 this.Dispatcher.Invoke(DispatcherPriority.DataBind, action);
             }
         }
+        #endregion
+
     }
 }

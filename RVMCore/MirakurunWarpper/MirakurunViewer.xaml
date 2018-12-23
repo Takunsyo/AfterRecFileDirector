@@ -11,7 +11,7 @@
         xmlns:s="clr-namespace:System;assembly=mscorlib" 
         xmlns:mwt="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero"
         mc:Ignorable="d"
-        Title="{Binding Path=Selected.name,StringFormat=視聴中「{0}」}" Height="450" Width="800">
+        Title="{Binding Path=Selected.name,StringFormat=視聴中「{0}」}" Height="450" Width="800" Closing="Window_Closing">
     <Window.Resources>
         <ObjectDataProvider MethodName="GetValues"
         ObjectType="{x:Type sys:Enum}"

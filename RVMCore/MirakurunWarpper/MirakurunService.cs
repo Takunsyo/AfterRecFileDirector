@@ -838,75 +838,81 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="FailedCallback">Callback delegate in case of failed subscribe.</param>
         /// <param name="type"></param>
         /// <param name="resource"></param>
-        public void SubscribeEvents(Action<object>FailedCallback = default, EventType? type = null,ResourceType? resource = null)
+        public void SubscribeEvents(EventType? type = null,ResourceType? resource = null)
         {
             if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) return;
             var workLoad = new ThreadStart(new Action(() => {
-                var ub = new UriBuilder(ServiceAddr.ToString() + "api/events/stream");
-                var query = HttpUtility.ParseQueryString(ub.Query);
-                if (type != null) query["type"] = type.ToString();
-                if (resource != null) query["resource"] = resource.ToString();
-                ub.Query = query.ToString();
-                var req = InitWebRequest(ub.ToString());
-                req.Timeout = Timeout.Infinite;
-                var rep = GettingResponse(ref req);
-                if (rep == null) { FailedCallback?.Invoke(this); return; }
-                switch ((int)rep.StatusCode)
-                {
-                    case 200:
-                        using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
-                        {
-                            streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
-                            if (type is null)
-                            {
-                                SubscribedEventType = EventType.create | EventType.redefine | EventType.update;
-                            }
-                            else
-                            {
-                                SubscribedEventType = type;
-                            }
-                            if (resource is null)
-                            {
-                                SubscribedResourceType = ResourceType.program | ResourceType.service | ResourceType.tuner;
-                            }
-                            else
-                            {
-                                SubscribedResourceType = resource;
-                            }
-                            //Start parsing cycle
-                            try { 
-                                while (!streadReader.EndOfStream)
-                                {
-                                    eventSubscribeCancellationTokenSource.Token.ThrowIfCancellationRequested();
-                                    string resultLine = streadReader.ReadLine();
-                                    //System.Diagnostics.Trace.WriteLine(resultLine);
-                                    if (!resultLine.StartsWith("{")) continue;
-                                    var tmp = JsonConvert.DeserializeObject<Event>(resultLine);
-                                    this.EventRecived?.Invoke(this, tmp);
-                                }
-                                FailedCallback?.Invoke(this);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                "Stoped subsctiption.".InfoLognConsole();
-                            }
-                        }
-                        break;
-                    default:
-                        var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
-                        var json = JsonConvert.DeserializeObject<@default>(mbody);
-                        "Failed to get event stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
-                        FailedCallback?.Invoke(this);
-                        break;
-                }
-                req.Abort(); rep.Close();
-                SubscribedEventType = null;
-                SubscribedResourceType = null;
+                SubscribeEventsWork(0, type, resource);
             }));
             eventSubscribeCancellationTokenSource = new CancellationTokenSource();
             eventSubscribeThread = new Thread(workLoad);
             eventSubscribeThread.IsBackground = true;
             eventSubscribeThread.Start();
+        }
+
+        private void SubscribeEventsWork(int SleepTime = 0, EventType? type = null, ResourceType? resource = null)
+        {
+            Thread.Sleep(SleepTime);
+            var ub = new UriBuilder(ServiceAddr.ToString() + "api/events/stream");
+            var query = HttpUtility.ParseQueryString(ub.Query);
+            if (type != null) query["type"] = type.ToString();
+            if (resource != null) query["resource"] = resource.ToString();
+            ub.Query = query.ToString();
+            var req = InitWebRequest(ub.ToString());
+            req.Timeout = Timeout.Infinite;
+            var rep = GettingResponse(ref req);
+            if (rep == null) { return; }
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    GetMessages();
+                    break;
+                default:
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to get event stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    SubscribeEventsWork(3000, type, resource);
+                    break;
+            }
+            void GetMessages()
+            {
+                using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
+                {
+
+                    streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
+                    SubscribedEventType = type ?? (EventType.create | EventType.redefine | EventType.update);
+                    SubscribedResourceType = resource ?? (ResourceType.program | ResourceType.service | ResourceType.tuner);
+                    //Start parsing cycle
+                    try
+                    {
+                        while (!streadReader.EndOfStream)
+                        {
+                            eventSubscribeCancellationTokenSource.Token.ThrowIfCancellationRequested();
+                            string resultLine = streadReader.ReadLine();
+                            //System.Diagnostics.Trace.WriteLine(resultLine);
+                            if (!resultLine.StartsWith("{")) continue;
+                            var tmp = JsonConvert.DeserializeObject<Event>(resultLine);
+                            this.EventRecived?.Invoke(this, tmp);
+                        }
+                        req.Abort(); rep.Close(); rep.Dispose();
+                        SubscribeEventsWork(3000, type, resource);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        req.Abort(); rep.Close(); rep.Dispose();
+                        "Stoped subsctiption.".InfoLognConsole();
+                    }
+                    catch (Exception ex)
+                    {
+                        req.Abort(); rep.Close(); rep.Dispose();
+                        ex.Message.ErrorLognConsole();
+                        SubscribeEventsWork(3000, type, resource);
+                    }
+                }
+            }
+            SubscribedEventType = null;
+            SubscribedResourceType = null;
+
         }
         /// <summary>
         /// Stop subscribe event informations.
@@ -961,52 +967,67 @@ namespace RVMCore.MirakurunWarpper
         /// GET /log/stream
         /// </summary>
         /// <param name="FailedCallback">Callback delegate in case of failed subscribe.</param>
-        public void SubscribeLogs(Action<object> FailedCallback = default)
+        public void SubscribeLogs()
         {
             if (logSubscribeThread?.IsAlive ?? false) return;
             var workLoad = new ThreadStart(new Action(() => {
-                var ub = new Uri(ServiceAddr, "api/log/stream");
-                var req = InitWebRequest(ub);
-                req.Timeout = Timeout.Infinite;
-                var rep = GettingResponse(ref req);
-                if (rep == null) { FailedCallback?.Invoke(this); return; }
-                switch ((int)rep.StatusCode)
-                {
-                    case 200:
-                        using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
-                        {
-                            streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
-                            //Start parsing cycle
-                            try
-                            {
-                                while (!streadReader.EndOfStream)
-                                {
-                                    logSubscribeCancellationTokenSource.Token.ThrowIfCancellationRequested();
-                                    string resultLine = streadReader.ReadLine();
-                                    this.LogRecived?.Invoke(this, resultLine);
-                                }
-                                FailedCallback?.Invoke(this);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                "Stoped subsctiption.".InfoLognConsole();
-                            }
-                        }
-                        break;
-                    default:
-                        var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
-                        var json = JsonConvert.DeserializeObject<@default>(mbody);
-                        "Failed to subscript logs! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
-                        FailedCallback?.Invoke(this);
-                        break;
-                }
-                req.Abort(); rep.Close();
+                SubscribeLogsWork();
             }));
             logSubscribeCancellationTokenSource = new CancellationTokenSource();
             logSubscribeThread = new Thread(workLoad);
             logSubscribeThread.IsBackground = true;
             logSubscribeThread.Start();
         }
+
+        private void SubscribeLogsWork(int SleepTime=0)
+        {
+            Thread.Sleep(SleepTime);
+            var ub = new Uri(ServiceAddr, "api/log/stream");
+            var req = InitWebRequest(ub);
+            req.Timeout = Timeout.Infinite;
+            var rep = GettingResponse(ref req);
+            if (rep == null) { return; }
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    using (StreamReader streadReader = new StreamReader(rep.GetResponseStream(), Encoding.UTF8))
+                    {
+                        streadReader.BaseStream.ReadTimeout = Timeout.Infinite;
+                        //Start parsing cycle
+                        try
+                        {
+                            while (!streadReader.EndOfStream)
+                            {
+                                logSubscribeCancellationTokenSource.Token.ThrowIfCancellationRequested();
+                                string resultLine = streadReader.ReadLine();
+                                this.LogRecived?.Invoke(this, resultLine);
+                            }
+                            req.Abort(); rep.Close(); rep.Dispose();
+                            SubscribeLogsWork(3000);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            req.Abort(); rep.Close(); rep.Dispose();
+                            "Stoped subsctiption.".InfoLognConsole();
+                        }
+                        catch (Exception ex)
+                        {
+                            req.Abort(); rep.Close(); rep.Dispose();
+                            ex.Message.ErrorLognConsole();
+                            SubscribeLogsWork(3000);
+                        }
+                    }
+                    break;
+                default:
+                    req.Abort(); rep.Close(); rep.Dispose();
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to subscript logs! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    SubscribeLogsWork(3000);
+                    break;
+            }
+        }
+
         /// <summary>
         /// Stop watching Mirakurun server Logs.
         /// </summary>

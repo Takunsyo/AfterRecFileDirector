@@ -12,20 +12,25 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace RVMCore.Forms
+namespace RVMCore.MasterView
 {
     /// <summary>
-    /// Window1.xaml 的交互逻辑
+    /// Setting.xaml 的交互逻辑
     /// </summary>
-    public partial class CloudViewer : Window
+    public partial class Setting : Window
     {
-        public CloudViewerViewModel mView = new CloudViewerViewModel();
-            
-        public CloudViewer()
+        public Setting()
         {
             InitializeComponent();
+            this.DataContext = new SettingViewModel();
+        }
 
-            this.DataContext = mView;
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            if(MessageBox.Show("Are you ready to cancel?", "Cancel?", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
+            {
+                this.Close();
+            }
         }
     }
 }

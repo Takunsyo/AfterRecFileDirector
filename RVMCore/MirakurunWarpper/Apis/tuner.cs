@@ -31,7 +31,7 @@ namespace RVMCore.MirakurunWarpper.Apis
                 {
                     tmp += i + ",";
                 }
-                tmp.Remove(tmp.Length - 1);
+                tmp.Remove(tmp.Length - 2);
                 return tmp;
             }
         }

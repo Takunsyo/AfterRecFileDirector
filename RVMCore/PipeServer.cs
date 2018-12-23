@@ -52,9 +52,9 @@ namespace RVMCore
                 // Get the pipe
                 // End waiting for the connection
                 pipe.EndWaitForConnection(iar);
-                byte[] buffer = new byte[255];
+                byte[] buffer = new byte[1024];
                 // Read the incoming message
-                pipe.Read(buffer, 0, 255);
+                pipe.Read(buffer, 0, 1024);
                 // Convert byte buffer to string
                 string stringData = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
                 Debug.WriteLine(stringData);

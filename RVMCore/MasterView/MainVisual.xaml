@@ -36,10 +36,10 @@
                                 <ProgressBar Height="21" 
                                     VerticalAlignment="Top" 
                                     Foreground="{Binding Uploader.ProcessStateBrush}"
-                                    Maximum="{Binding Uploader.ProcessGen.Max}" 
-                                    Value="{Binding Uploader.ProcessGen.Val}"/>
+                                    Maximum="{Binding Uploader.ProcessGen.Max,Mode=OneWay}" 
+                                    Value="{Binding Uploader.ProcessGen.Val,Mode=OneWay}"/>
                                 <TextBlock TextWrapping="Wrap" 
-                                    Text="{Binding Uploader.ProcessGen.Text}" 
+                                    Text="{Binding Uploader.ProcessGen.Text,Mode=OneWay}" 
                                     TextAlignment="Center"/>
                                 <Grid.Effect>
                                     <DropShadowEffect Color="{Binding Uploader.ProcessStateColor}"
@@ -129,10 +129,13 @@
             </NotifyTray:TaskbarIcon.TrayToolTip>
             <NotifyTray:TaskbarIcon.ContextMenu>
                 <ContextMenu>
-                    <TextBlock Text="A ContentMenu!"/>
-                    <MenuItem Header="_Show Uploader [U]" Click="OpenUploader_Click"/>
+                    <MenuItem Header="_Show Cloud Viewer" Command="{Binding OpenCloud}"/>
+                    <MenuItem Header="_Show Uploader" Command="{Binding OpenUploader}"/>
+                    <MenuItem Header="_Show Mirakurun Logs" Command="{Binding OpenLogs}"/>
+                    <MenuItem Header="_Watch TV" Command="{Binding OpenTV}"/>                    
                     <Separator />
-                    <MenuItem Header="_Exit Application [C]" Click="Exit_Click"/>
+                    <MenuItem Header="_App Settings" Command="{Binding OpenSetting}"/>
+                    <MenuItem Header="_Exit Application" Click="Exit_Click"/>
                 </ContextMenu>
             </NotifyTray:TaskbarIcon.ContextMenu>
         </NotifyTray:TaskbarIcon>

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Timers;
 using System.Windows.Controls;
 using System.Windows.Documents;
-using RVMCore.Forms;
+using RVMCore.MasterView;
 
 namespace RVMCore.MirakurunWarpper
 {
@@ -44,44 +44,43 @@ namespace RVMCore.MirakurunWarpper
             this.pTicks.AutoReset = true;
             this.pTicks.Start();
         }
+
+        public MirakurunViewerView(in MirakurunService serv)
+        {
+            services = serv;
+            _ChannelList = new Dictionary<ChannelType, ObservableCollection<Apis.Service>>();
+            _ChannelList.Add(ChannelType.GR, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.GR)));
+            _ChannelList.Add(ChannelType.BS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.BS)));
+            _ChannelList.Add(ChannelType.CS, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.CS)));
+            _ChannelList.Add(ChannelType.SKY, new ObservableCollection<Apis.Service>(services.GetServices(cType: ChannelType.SKY)));
+            this.pTicks = new Timer();
+            this.pTicks.Interval = 1000;
+            this.pTicks.Elapsed += this.pTick_Tick;
+            this.pTicks.AutoReset = true;
+            this.pTicks.Start();
+        }
+
         private MirakurunService services;
         private List<Apis.Program> ProgramsBank;
 
-        private ChannelType _ChannelType = ChannelType.GR;
-        public ChannelType ChannelType
-        {
-            get
-            {
-                return _ChannelType;
-            }
-            set
-            {
-                SetProperty(ref _ChannelType, value);
-                NotifyPropertyChanged("ChannelList");
-            }
-        }
+        //private ChannelType _ChannelType = ChannelType.GR;
+        public ChannelType ChannelType { get; set; }
+        //{
+        //    get
+        //    {
+        //        return _ChannelType;
+        //    }
+        //    set
+        //    {
+        //        SetProperty(ref _ChannelType, value);
+        //        NotifyPropertyChanged("ChannelList");
+        //    }
+        //}
 
         private Dictionary<ChannelType, ObservableCollection<Apis.Service>> _ChannelList;
-        public ObservableCollection<Apis.Service> ChannelList
-        {
-            get
-            {
-                return _ChannelList[ChannelType];
-            }
-        }
+        public ObservableCollection<Apis.Service> ChannelList=> _ChannelList[ChannelType];
 
-        private Apis.Service _Selected;
-        public Apis.Service Selected
-        {
-            get
-            {
-                return _Selected;
-            }
-            set
-            {
-                SetProperty(ref _Selected, value);
-            }
-        }
+        public Apis.Service Selected { get; set; }
 
         public Uri ViewUri { get; private set; }
 
@@ -89,7 +88,7 @@ namespace RVMCore.MirakurunWarpper
         public void ChangeChannel()
         {
             this.ViewUri =new Uri(services.GetServiceStreamPath(this.Selected.id));
-            NotifyPropertyChanged("ViewUri");
+            //NotifyPropertyChanged("ViewUri");
             Apis.Program tmp = null;
             GetPrograms(this.Selected.serviceId);
             try
@@ -106,8 +105,8 @@ namespace RVMCore.MirakurunWarpper
                 return;
             }
             this.NowProgram = tmp;
-            NotifyPropertyChanged("Description");
-            NotifyPropertyChanged("EndTime");
+            //NotifyPropertyChanged("Description");
+            //NotifyPropertyChanged("EndTime");
             var v = this.NowProgram.startAt + this.NowProgram.duration - MirakurunService.GetUNIXTimeStamp();
             this.timer = new Timer();
             this.timer.AutoReset = true;
@@ -135,26 +134,15 @@ namespace RVMCore.MirakurunWarpper
                 System.Windows.MessageBox.Show("Server data need to be updated!");
             }
             this.NowProgram = tmp;
-            NotifyPropertyChanged("Description");
-            NotifyPropertyChanged("EndTime");
+            //NotifyPropertyChanged("Description");
+            //NotifyPropertyChanged("EndTime");
             var v = this.NowProgram.startAt + this.NowProgram.duration - MirakurunService.GetUNIXTimeStamp();
             if (v <= 0) return;
             this.timer.Interval = v;
             this.timer.Elapsed += Timer_Elapsed;
         }
 
-        private Apis.Program _NowProgram;
-        public Apis.Program NowProgram
-        {
-            get
-            {
-                return _NowProgram;
-            }
-            set
-            {
-                SetProperty(ref _NowProgram, value);
-            }
-        }
+        public Apis.Program NowProgram { get; set; }
         private Timer pTicks;
 
         private void pTick_Tick(object sender , EventArgs e)
@@ -196,7 +184,7 @@ namespace RVMCore.MirakurunWarpper
                 tmp.Blocks.Add(title);
 
                 var station = new Paragraph();
-                station.Inlines.Add(new Italic(new Run(this.Selected.name)));
+                station.Inlines.Add(new Italic(new Run(this.Selected?.name)));
                 station.FontSize = 10;
                 tmp.Blocks.Add(station);
 

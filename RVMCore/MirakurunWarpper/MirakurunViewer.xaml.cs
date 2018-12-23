@@ -27,7 +27,13 @@ namespace RVMCore.MirakurunWarpper
             InitializeComponent();
             mView = view;
             this.DataContext = mView;
+        }
 
+        public MirakurunViewer(MirakurunService view)
+        {
+            InitializeComponent();
+            mView = new MirakurunViewerView(view);
+            this.DataContext = mView;
         }
 
         public MirakurunViewer()
@@ -56,7 +62,14 @@ namespace RVMCore.MirakurunWarpper
             //DrawingBrush brush = new DrawingBrush(drawing);
             //this.PlayerBack.Background = brush;
         }
-        
-         //private static 
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            mView = null;
+            GC.Collect();
+        }
+
+
+        //private static 
     }
 }

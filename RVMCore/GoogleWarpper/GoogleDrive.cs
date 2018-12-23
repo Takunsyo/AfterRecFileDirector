@@ -18,9 +18,13 @@ using System.Net.Http.Headers;
 namespace RVMCore.GoogleWarpper
 {
     public delegate void UpdateProgress(long nowByte, long byteCount, int speed);
-
+    
     public class GoogleDrive:IDisposable
     {
+        /// <summary>
+        /// The minimal byte count of google api.
+        /// </summary>
+        private const int BasePacketNumber = 256*1024;
         static string[] Scopes = { DriveService.Scope.Drive };
         static string ApplicationName = "After Record File Upload Service";
         static UserCredential UserCredential {
@@ -45,9 +49,9 @@ namespace RVMCore.GoogleWarpper
             }
             set
             {
-                if(value < 256 * 1024 && value !=0)
+                if(value < BasePacketNumber && value !=0)
                 {
-                    this._MaxBytesPerSecond = 256 * 1024;
+                    this._MaxBytesPerSecond = BasePacketNumber;
                 }
                 else
                 {
@@ -205,7 +209,6 @@ namespace RVMCore.GoogleWarpper
         public IEnumerable<File> GetGoogleFiles(string querrystring = "",bool OnlyOwnedByMe = true)
         {
             string pageToken = null;
-            List<File> tmp_list = new List<File>();
             do
             {
                 var req = this.Service.Files.List();
@@ -213,7 +216,7 @@ namespace RVMCore.GoogleWarpper
                 req.PageToken = pageToken;
                 if (OnlyOwnedByMe)
                 {
-                    req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : " and " + querrystring);
+                    req.Q = "'me' in owners" + (querrystring.IsNullOrEmptyOrWhiltSpace() ? "" : $" and {querrystring}");
                 }
                 else
                 {
@@ -228,12 +231,14 @@ namespace RVMCore.GoogleWarpper
                 catch (Exception ex)
                 {
                     ex.Message.ErrorLognConsole();
-                    return null;
+                    continue;
                 }
-                tmp_list.AddRange(tmp.Files);
+                foreach(var i in tmp.Files)
+                {
+                    yield return i;
+                }
                 pageToken = tmp.NextPageToken;
             } while (pageToken != null);
-            return tmp_list;
         }
 
         /// <summary>
@@ -466,11 +471,9 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true)
-        {
-            return await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID,checkMD5));
-        }
-
+        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true) =>
+            await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID,checkMD5));
+        
         /// <summary>
         /// Check if the file has exists at google drive.
         /// </summary>
@@ -500,10 +503,8 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, string remotePath = null)
-        {
-            return await Task.Run(() => this.RemoteFileExists(fullFilePath, remotePath));
-        }
+        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, string remotePath = null) => 
+            await Task.Run(() => this.RemoteFileExists(fullFilePath, remotePath));
         
         /// <summary>
         /// This event will be raised when Upload or Download has a progress updated.
@@ -535,7 +536,7 @@ namespace RVMCore.GoogleWarpper
                     rmuri = uriRD.ReadToEnd();
                 }
                 //Console.WriteLine("Upload meta Oped.");
-                int chunkSize = 256*1024;
+                int chunkSize = BasePacketNumber;
                 long byteCnt = -1;
                 Stopwatch mWatch = new Stopwatch(); ;
                 Stopwatch SpeedControl = null;
@@ -676,7 +677,7 @@ namespace RVMCore.GoogleWarpper
                             break;
                         case 404:
                             "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
-                            System.IO.File.Delete(GetUploadStatusPath(localPath));
+                            if (!DeleteTempFile(GetUploadStatusPath(localPath))) return null; ;
                             "Retry upload.".InfoLognConsole();
                             sr.Dispose();//Close file stream, if not thread will hang forever try to open file.
                             return this.UploadResumable(localPath, remotePath);
@@ -709,7 +710,7 @@ namespace RVMCore.GoogleWarpper
                                 Encoding.UTF8.GetString(mmm).ErrorLognConsole();
                             }
                             "Upload failed! Catch unhandled error! File:[{0}]".ErrorLognConsole(localPath);
-                            System.IO.File.Delete(GetUploadStatusPath(localPath));
+                            DeleteTempFile(GetUploadStatusPath(localPath));
                             sr.Dispose();
                             return null;
                             //Other message maybe Errors.
@@ -738,12 +739,12 @@ namespace RVMCore.GoogleWarpper
                             if(speed > (int)MaxBytesPerSecond)
                                 chunkSize = (int)MaxBytesPerSecond;
                             else
-                                chunkSize = speed;
+                                chunkSize = BasePacketNumber * (int)(speed / BasePacketNumber);
                         }
                         else
-                            chunkSize = (int)(speed * 0.8);
-                        if(chunkSize < 256 * 1024)
-                            chunkSize = 256 * 1024;
+                            chunkSize = BasePacketNumber*(int)(speed/BasePacketNumber);
+                        if(chunkSize < BasePacketNumber)
+                            chunkSize = BasePacketNumber;
                     }
                     evaSpeed.Add(speed);
                     if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
@@ -782,6 +783,20 @@ namespace RVMCore.GoogleWarpper
             if (result.Files.Count > 0)
                 return result.Files[0];
             return null;
+            bool DeleteTempFile(string filePath)
+            {
+                try
+                {
+                    System.IO.File.SetAttributes(filePath, System.IO.FileAttributes.Normal);
+                    System.IO.File.Delete(filePath);
+                }
+                catch
+                {
+                    "Unable to delete temp file!".ErrorLognConsole();
+                    return false;
+                }
+                return true;    
+            }
         }
 
         /// <summary>
@@ -792,11 +807,9 @@ namespace RVMCore.GoogleWarpper
         /// <param name="localPath">Local file's full path.</param>
         /// <param name="remotePath">Google Drive Path : path looks like "\foo\bar\" to represent "GoogleDriveRoot:\foo\bar\".</param>
         /// <returns></returns>
-        public async Task<File> UploadResumableAsync(string localPath, string remotePath)
-        {
-            return await Task.Run(() => UploadResumable(localPath, remotePath));
-        }
-
+        public async Task<File> UploadResumableAsync(string localPath, string remotePath)=>        
+            await Task.Run(() => UploadResumable(localPath, remotePath));
+       
         /// <summary>
         /// Update certain files metadata.
         /// </summary>
@@ -805,7 +818,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="body">A <see cref="File"/> object of the file
         /// <para>Only a part of the <see cref="File">'s property can be used.</para>
         /// </param>
-        public File UpdateFile(string ID, File body)
+        public File UpdateFile(string ID, in File body)
         {
             var req = Service.Files.Update(body, ID);
             return req.Execute();
@@ -1014,10 +1027,8 @@ namespace RVMCore.GoogleWarpper
         /// <param name="ID">Google drive File ID</param>
         /// <param name="localPath">Local folder or a specified file's path.</param>
         /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
-        public bool DownloadResumable(string ID, string localPath)
-        {
-            return DownloadResumable(ID, localPath, false);
-        }
+        public bool DownloadResumable(string ID, string localPath)=>
+            DownloadResumable(ID, localPath, false);
 
         /// <summary>
         /// Make a awaitable resumable Download request to the GoogleDrive.
@@ -1026,30 +1037,27 @@ namespace RVMCore.GoogleWarpper
         /// <param name="localPath">Local folder or a specified file's path.</param>
         /// <param name="checkMD5">Assign to <see cref="true"/> if you want to check the file with MD5 sum check.</param>
         /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
-        public async Task<bool> DownloadResumableAsync(string ID, string localPath, bool checkMD5)
-        {
-            return await Task.Run(() => DownloadResumable(ID, localPath, checkMD5));
-        }
-
+        public async Task<bool> DownloadResumableAsync(string ID, string localPath, bool checkMD5)=> 
+            await Task.Run(() => DownloadResumable(ID, localPath, checkMD5));
+        
         /// <summary>
         /// Make a awaitable resumable Download request to the GoogleDrive.
         /// </summary>
         /// <param name="ID">Google drive File ID</param>
         /// <param name="localPath">Local folder or a specified file's path.</param>
         /// <returns><see cref="true"/> if the file has successfully downloaded.</returns>
-        public async Task<bool> DownloadResumableAsync(string ID, string localPath)
-        {
-            return await Task.Run(() => DownloadResumable(ID, localPath, false));
-        }
-
+        public async Task<bool> DownloadResumableAsync(string ID, string localPath) =>
+            await Task.Run(() => DownloadResumable(ID, localPath, false));
+        
         /// <summary>
-        /// To replace a File with a updated MimeType.
+        /// To replace a File with a updated MimeType. *Proved not working.
         /// </summary>
         /// <param name="ID">Google Drive File's ID</param>
         /// <param name="NewMimeType">New MimeType</param>
         /// <param name="DeleteOrignal">Set to false by default, Set to true if delete permanently.
         /// <para>*Notice: if set to <see cref="true"/>, the deletion can *NOT be undo.</para></param>
         /// <returns></returns>
+        [Obsolete("This method is not working.",true)]
         public bool ReplaceFileMimetype(string ID,string NewMimeType,bool DeleteOrignal = false)
         {
             var oriFile = this.GetGoogleFileByID(ID);

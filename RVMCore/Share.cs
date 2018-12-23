@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualBasic;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
@@ -162,16 +163,16 @@ namespace RVMCore
             /// <summary>
             /// Rename folder, change it's time stamp up to date.
             /// </summary>
-        public static void RenameDirUpToDate(ref string dirPath, DateTime newDate)
+        public static bool RenameDirUpToDate(ref string dirPath, DateTime newDate)
         {
             if (!System.IO.Directory.Exists(dirPath))
-                return;
+                return false;
             int i = dirPath.LastIndexOf(@"\") + 1;
             string dirName = dirPath.Substring(i);
             i = dirName.IndexOf("[") + 1;
             int i2 = dirName.IndexOf("]");
             if (i2 <= 0)
-                return;
+                return false;
             var OldDate = GetTimeSpan(dirName.Substring(i, i2));
             if (DateTime.Compare(OldDate.EndQuarterly, newDate) < 0)
             {
@@ -186,6 +187,20 @@ namespace RVMCore
                     Console.WriteLine(e.Message);
                 }
                 dirPath = dirName;
+                return true;
+            }
+            return false;
+        }
+
+        public static IEnumerable<ulong> GetFibonacciSequence()
+        {
+            ulong x = 0 , y =1;
+            while (true)
+            {                
+                yield return y;
+                var tmp = y;
+                y += x;
+                x = tmp;
             }
         }
     }

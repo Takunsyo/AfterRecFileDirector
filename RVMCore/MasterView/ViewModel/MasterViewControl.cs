@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace RVMCore.MasterView
@@ -29,10 +28,7 @@ namespace RVMCore.MasterView
         private bool _IsWorking = false;
         private bool IsWorking
         {
-            get
-            {
-                return _IsWorking;
-            }
+            get => _IsWorking;
             set
             {
                 _IsWorking = value;
@@ -46,37 +42,22 @@ namespace RVMCore.MasterView
                 }
             }
         }
-        private ObservableCollection<MirakurunWarpper.Apis.Tuner> _Tuners;
-        public ObservableCollection<MirakurunWarpper.Apis.Tuner> Tuners
-        {
-            get
-            {
-                return _Tuners;
-            }
-            set
-            {
-                SetProperty(ref _Tuners, value);
-            }
-        }
         #endregion
 
         public void Dispose()
         {
             //((IDisposable)mMenu).Dispose();
             //((IDisposable)mTaskBarIcon).Dispose();
-            ((IDisposable)mMirakurun).Dispose();
+            mMirakurun.Dispose();
             //((IDisposable)mEPGAccess).Dispose();
-            ((IDisposable)Uploader).Dispose();
+            Uploader.Dispose();
             //Halt.Abort();
         }
 
-        public RVMCore.GoogleWarpper.UploaderViewModel _uploader;
-        public GoogleWarpper.UploaderViewModel Uploader
-        {
-            get { return _uploader; }
-            set { SetProperty(ref _uploader, value); }
-        }
-        private RVMCore.Forms.Uploader uploaderForm;
+        public UploaderViewModel Uploader { get; set; }
+        private Uploader uploaderForm;
+        private MirakurunLogViewModel mirakurunLog;
+        private MirakurunWarpper.MirakurunViewer tvViewer;
 
         public MasterViewControl()
         {
@@ -88,39 +69,60 @@ namespace RVMCore.MasterView
             TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
             InitializeMirakurun();
             InitializeEPGStation();
-            this.Uploader = new GoogleWarpper.UploaderViewModel();
+            this.Uploader = new UploaderViewModel();
         }
 
-        private void OpenUploader_Click(object sender, RoutedEventArgs e)
+        public ICommand OpenUploader
         {
-            if(uploaderForm is null || !uploaderForm.IsActive)
-            uploaderForm = new Forms.Uploader(this.Uploader,false);
-            uploaderForm.Show();
+            get=>new CustomCommand(() => {
+                if (!(uploaderForm?.IsLoaded ?? false))
+                    uploaderForm = new Uploader(this.Uploader, false);
+                uploaderForm.Show();
+            });
         }
 
-        //private void MyNotifyIcon_TrayContextMenuOpen(object sender, System.Windows.RoutedEventArgs e)
-        //{
-        //    OpenEventCounter.Text = (int.Parse(OpenEventCounter.Text) + 1).ToString();
-        //}
-        //private void MyNotifyIcon_PreviewTrayContextMenuOpen(object sender, System.Windows.RoutedEventArgs e)
-        //{
-        //    //marking the event as handled suppresses the context menu
-        //    e.Handled = (bool)SuppressContextMenu.IsChecked;
+        public ICommand OpenLogs => new CustomCommand(() =>
+        {
+            if (!(mirakurunLog?.IsLoaded ?? false))
+                mirakurunLog = new MirakurunLogViewModel(this.mMirakurun);
+            mirakurunLog.Show();
+        });
 
-        //    PreviewOpenEventCounter.Text = (int.Parse(PreviewOpenEventCounter.Text) + 1).ToString();
-        //}
+        public ICommand OpenTV => new CustomCommand(() =>
+        {
+            if (!(tvViewer?.IsLoaded ?? false))
+                tvViewer = new MirakurunWarpper.MirakurunViewer(this.mMirakurun);
+            tvViewer.Show();
+        });
+
+        public ICommand OpenSetting => new CustomCommand(() => {
+            if(!IsWindowOpen<Setting>())(new Setting()).Show();
+        });
+
+        public ICommand OpenCloud => new CustomCommand(() => {
+            if (!IsWindowOpen<CloudViewer>()) (new CloudViewer(this.Uploader.Service)).Show();
+        });
+
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
-            if(MessageBox.Show(
-                "Do you really want to exit AfterRecordDirector? \nThis will disenable watching and upload.",
-                "Are you sure?",MessageBoxButton.YesNo,MessageBoxImage.Warning)== MessageBoxResult.Yes)
-            {
-                this.Close();
-                this.Dispose();
-            }
+            Thread work = new Thread(new ThreadStart(() => { 
+                if(MessageBox.Show(
+                    "Do you really want to exit AfterRecordDirector? \nThis will disenable watching and upload.",
+                    "Are you sure?",MessageBoxButton.YesNo,MessageBoxImage.Warning, MessageBoxResult.No,MessageBoxOptions.DefaultDesktopOnly) == MessageBoxResult.Yes)
+                {
+                    Dispatcher.Invoke(() => { 
+                        this.Close();
+                        this.Dispose();
+                    });
+                }
+            }));
+            work.Start();
         }
 
         #region Mirakurun
+
+        public ObservableCollection<MirakurunWarpper.Apis.Tuner> Tuners { get; set; }
+
         public void InitializeMirakurun()
         {
             var work = new Thread(new ThreadStart(() => { 
@@ -128,25 +130,31 @@ namespace RVMCore.MasterView
                 //init mirakurun
                 mMirakurun = new MirakurunWarpper.MirakurunService(setting);
                 InitTunerView();
-                mMirakurun.EventRecived += MMirakurun_EventRecived;
-                //mMirakurun.LogRecived += MMirakurun_LogRecived;
-                
-                mMirakurun.SubscribeEvents(EventFailedCallback);
-                //mMirakurun.SubscribeLogs(LogsFailedCallback);
+                mMirakurun.EventRecived += MMirakurun_EventRecived;                
+                mMirakurun.SubscribeEvents(null,MirakurunWarpper.Apis.ResourceType.tuner);
             }));
+            void InitTunerView()
+            {
+                var tmp = mMirakurun.GetTuners();
+                var locker = new object();
+                this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
+                BindingOperations.EnableCollectionSynchronization(this.Tuners, locker);
+                this.Execute(() => {
+                    this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
+                    foreach (var i in tmp)
+                    {
+                        Tuners.Add(i);
+                    }
+                });
+            }
             work.Start();
         }
+        //Call back methods
         private void EventFailedCallback(object sender)
         {
             var serv = (MirakurunWarpper.MirakurunService)sender;
             Thread.Sleep(3000);
-            serv.SubscribeEvents(EventFailedCallback);
-        }
-        private void LogsFailedCallback(object sender)
-        {
-            var serv = (MirakurunWarpper.MirakurunService)sender;
-            Thread.Sleep(3000);
-            serv.SubscribeLogs(LogsFailedCallback);
+            //serv.SubscribeEvents(EventFailedCallback);
         }
         //Recived Events.
         private void MMirakurun_EventRecived(object sender, MirakurunWarpper.Apis.Event events)
@@ -168,37 +176,13 @@ namespace RVMCore.MasterView
                     break;
             }
         }
-        private void InitTunerView()
-        {
-            var tmp = mMirakurun.GetTuners();
-            var locker = new object();
-            this.Tuners = new ObservableCollection< MirakurunWarpper.Apis.Tuner>();
-            BindingOperations.EnableCollectionSynchronization(this.Tuners, locker);
-            this.Execute(() => { 
-                this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
-                foreach(var i in tmp)
-                {
-                    Tuners.Add(i);
-                }
-            });
-        }
+
         #endregion
 
         #region EPGStation
         private List<EPGStationWarpper.Api.Reserve> epgReserveList;
         private System.Timers.Timer EPGUpdateTimer;
-        private ObservableCollection<EPGView> _EPGReserves;
-        public ObservableCollection<EPGView> EPGReserves
-        {
-            get
-            {
-                return _EPGReserves;
-            }
-            set
-            {
-                SetProperty(ref _EPGReserves, value);
-            }
-        }
+        public ObservableCollection<EPGView> EPGReserves { get; set; }
 
         public void InitializeEPGStation()
         {
@@ -269,7 +253,7 @@ namespace RVMCore.MasterView
             });
         }
 
-        public class EPGView:RVMCore.Forms.ViewModelBase
+        public class EPGView:ViewModelBase
         {
             public static List<EPGStationWarpper.Api.EPGchannel> EPGchannels;
             public EPGStationWarpper.Api.Reserve body { get; }
@@ -296,9 +280,7 @@ namespace RVMCore.MasterView
                 long tnow = MirakurunWarpper.MirakurunService.GetUNIXTimeStamp();
                 if (tnow > endAt) { timer.Stop(); return; }
                 Now =(int)( tnow - startAt);
-                OnPropertyChanged("Now");
                 TimeLeft = (MirakurunWarpper.MirakurunService.GetDateTime(endAt)-DateTime.UtcNow).ToString("hh\\:mm\\:ss");
-                OnPropertyChanged("TimeLeft");
             }
 
             public int Max
@@ -329,7 +311,14 @@ namespace RVMCore.MasterView
         }
         #endregion
 
-
+        public bool IsWindowOpen<T>(string name = "") where T : Window
+        {
+            
+            return string.IsNullOrEmpty(name)
+                ? Application.Current?.Windows.OfType<T>()?.Any() ?? false
+                : Application.Current?.Windows.OfType<T>()?.Any(w => w.Name.Equals(name)) ?? false;
+            
+        }
 
         #region ViewModel
         public event PropertyChangedEventHandler PropertyChanged;

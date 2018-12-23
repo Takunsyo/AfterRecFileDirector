@@ -6,84 +6,35 @@ using System.Collections.ObjectModel;
 using System.Windows.Forms;
 using System.Threading;
 using RVMCore.Forms;
+using System.Windows.Data;
+using RVMCore.GoogleWarpper;
 
-namespace RVMCore.GoogleWarpper
+namespace RVMCore.MasterView
 {
     public class UploaderViewModel : ViewModelBase, IDisposable
     {
         //public:
-        private string mainname = "After record upload service GOOGLE DEMON.";
-        public string MainName { get { return this.mainname; } set { this.SetProperty(ref this.mainname, value); } }
-        private string nowProcressingContent;
-        public string NowProcressingContent {
-            get
-            {
-                return nowProcressingContent;
-            }
-            set
-            {
-                nowProcressingContent = value;
-                this.OnPropertyChanged("NowProcressingContent");
-            }
-        }
+        public string MainName { get; set; }="After record upload service GOOGLE DEMON.";
+        public string NowProcressingContent { get; set; }
 
-        private Color processStateColor = Color.FromArgb(0xFF, 0x06, 0xB0, 0x25);
-        public Color ProcessStateColor
-        {
-            get
-            {
-                return processStateColor;
-            }
-            set
-            {
-                processStateColor = value;
-                this.OnPropertyChanged("ProcessStateColor");
-                this.OnPropertyChanged("ProcessStateBrush");
-            }
-        }
+        public Color ProcessStateColor { get; set; } = Color.FromArgb(0xFF, 0x06, 0xB0, 0x25);
         public Brush ProcessStateBrush {
             get
             {
-                return new SolidColorBrush( processStateColor);
+                return new SolidColorBrush( ProcessStateColor);
             }
 
         }
-        private UploadFile _selectedItem;
-        public UploadFile SelectedItem {
-            get
-            {
-                return _selectedItem;
-            }
-            set
-            {
-                this.SetProperty(ref _selectedItem, value);
-            }
-        }
+        public UploadFile SelectedItem { get; set; }
         private UploadFile mUpObj;
-        private bool processNowState = false;
-        public bool ProcessNowState { get { return processNowState; } set { processNowState = value; this.OnPropertyChanged("ProcessNowState");}}
-        private ProgressInfo processNow = new ProgressInfo();
-        public ProgressInfo ProcessNow { get { return processNow; } set { processNow = value; this.OnPropertyChanged("ProcessNow"); } }
-        private ProgressInfo processGen = new ProgressInfo();
-        public ProgressInfo ProcessGen { get { return processGen; } set { processGen = value; this.OnPropertyChanged("ProcessGen"); } }
-        private string threadControlName = "Start";
-        public string ThreadControlName { get { return threadControlName; } set { threadControlName = value; this.OnPropertyChanged("ThreadControlName"); } }
+        public bool ProcessNowState { get; set; }
+        public ProgressInfo ProcessNow { get; set; } = new ProgressInfo();
+        public ProgressInfo ProcessGen { get; set; } = new ProgressInfo();
+        public string ThreadControlName { get; set; }="Start";
         //private List<UploadFile> fileList = new List<UploadFile>();
         //public List<UploadFile> FileList { get {return fileList; } set {fileList = value; this.OnPropertyChanged("ThreadControlName"); } }
 
-        private int maxSpeed = 0;
-        public int MaxSpeed
-        {
-            get
-            {
-                return maxSpeed;
-            }
-            set
-            {
-                maxSpeed = value;
-                this.OnPropertyChanged("MaxSpeed");
-            }
-        }
+        public int MaxSpeed { get; set; }
         private bool isSpeedControl = false;
         public bool IsSpeedControl
         {
@@ -95,14 +46,14 @@ namespace RVMCore.GoogleWarpper
             {
                 if (value)
                 {
-                    if (maxSpeed >= 256)
+                    if (MaxSpeed >= 256)
                     {
-                        Service.MaxBytesPerSecond = (ulong)maxSpeed * 1024;
+                        Service.MaxBytesPerSecond = (ulong)MaxSpeed * 1024;
                     }
                     else
                     {
                         this.MaxSpeed = 256;
-                        Service.MaxBytesPerSecond = (ulong)maxSpeed * 1024;
+                        Service.MaxBytesPerSecond = (ulong)MaxSpeed * 1024;
                     }
                 }
                 else
@@ -110,8 +61,6 @@ namespace RVMCore.GoogleWarpper
                     Service.MaxBytesPerSecond = 0;
                 }
                 isSpeedControl = value;
-                this.OnPropertyChanged("IsSpeedControl");
-
             }
         }
         public ObservableCollection<UploadFile> FileList { get; set; }
@@ -136,7 +85,7 @@ namespace RVMCore.GoogleWarpper
             midObject.PipeMessage += midObjectFileRecivedHdlr;
             if(!midObject.StartListen())MessageBox.Show("Unable to dig pip holes.", "Error",  MessageBoxButtons.OK);
             //Define uploading thread workload
-            this.UploadWorkload = new System.Threading.ThreadStart(() =>
+            this.UploadWorkload = new ThreadStart(() =>
             {
                 do
                  {
@@ -157,11 +106,27 @@ namespace RVMCore.GoogleWarpper
                     ProcessNow.SetValue(0, 0, "Initialize upload (MD5 File Checking...)");
                     ProcessNowState = true;
                     bool isSuccess = false;
-                    if (!System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.mUpObj)))
+                    if (!System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.mUpObj)))
                     {   
                         if (!(bool)Service.RemoteFileExists(this.mUpObj, remot,false))
                         {
                             ProcessNowState = false;
+                            if (this.mUpObj.IsChangeFather)
+                            {
+                                Google.Apis.Drive.v3.Data.File parent;
+                                string nowParentName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(this.mUpObj.FullPath));
+                                string remotePath = this.mUpObj.RemotePath.Replace(nowParentName, this.mUpObj.OldFatherPath);
+                                if (!remotePath.IsNullOrEmptyOrWhiltSpace())
+                                {
+                                    parent = Service.GetGoogleFolderByPath(remotePath);
+                                    var id = parent.Id;
+                                    parent = new Google.Apis.Drive.v3.Data.File
+                                    {
+                                        Name = nowParentName
+                                    };
+                                    Service.UpdateFile(id, parent);
+                                }
+                            }
                             isSuccess = this.mUpObj.Upload(Service);
                         }
                         else
@@ -182,23 +147,27 @@ namespace RVMCore.GoogleWarpper
                 } while (true);
                 ThreadControlName = "Start";
             });
-            this.mThread = new System.Threading.Thread(UploadWorkload);
+            this.mThread = new Thread(UploadWorkload);
             mThread.IsBackground = true;
-            Service = new GoogleWarpper.GoogleDrive();
+            Service = new GoogleDrive();
             FileList = new ObservableCollection<UploadFile>();
-            Service.UpdateProgressChanged += new GoogleWarpper.UpdateProgress(mProcessHandller);
+            Service.UpdateProgressChanged += new UpdateProgress(mProcessHandller);
         }
 
         private void midObjectFileRecivedHdlr(RmtFile e)
         {
-            this.FileList.Add(e.FullFilePath);
-        } 
+            if (e is null) return; 
+            var locker = new object();
+            BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
+            this.Execute(() => this.FileList.Add(e.FullFilePath));
+            BindingOperations.DisableCollectionSynchronization(this.FileList);
+        }
 
 
         //private:
-        System.Threading.Thread mThread;
-        System.Threading.ThreadStart UploadWorkload;
-        GoogleWarpper.GoogleDrive Service = null;
+        Thread mThread;
+        ThreadStart UploadWorkload;
+        public GoogleDrive Service { get; private set; } = null;
 
         private readonly Color PausedColor = Color.FromArgb(0xFF, 0xFF, 0xB9, 0x00);
         private readonly Color ProcesColor = Color.FromArgb(0xFF, 0x06, 0xB0, 0x25);
@@ -210,12 +179,13 @@ namespace RVMCore.GoogleWarpper
         {
             if (value >= 0 && maxmum > 0)
             {
-                if (value == 0) {
+                if (value == 0)
+                {
                     FileList.Single(x => x.FullPath == NowProcressingContent).UpdateData();
                 }
                 ProcessNowState = false;
                 this.ProcessNow.SetValue(value, maxmum, (long)y);
-                this.processGen.SetValue(Processed + value, TotalLength);
+                this.ProcessGen.SetValue(Processed + value, TotalLength);
             }
         }
         public void Open_Click(object sender, EventArgs e)
@@ -226,7 +196,7 @@ namespace RVMCore.GoogleWarpper
                 mdlg.Filter = "Transport Stream(*.ts;*.m2ts)|*.ts;*.m2ts|Meta Data(*.meta;*.xml)|*.meta;*.xml|All file(*.*)|*.*";
                 mdlg.InitialDirectory = @"E:\1[アニメ類]\";
                 mdlg.Multiselect = true;
-                if (mdlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                if (mdlg.ShowDialog() == DialogResult.OK)
                 {
                     foreach (string i in mdlg.FileNames)
                     {
@@ -351,28 +321,12 @@ namespace RVMCore.GoogleWarpper
         private ulong max;
         public int Max
         {
-            get
-            {
-                //if(max > int.MaxValue)
-                //{
-                //    return (int)(max / 2);
-                //}
-                return (int)(max / 256);
-            }
-            set { }//max = (ulong)value; }
+            get => (int)(max / 256);
         }
         private ulong val;
         public int Val
         {
-            get
-            {
-                //if(max > int.MaxValue)
-                //{
-                //    return (int)(val / 2);
-                //}
-                return (int)(val / 256);
-            }
-            set { }// val = (ulong)value; }
+            get => (int)(val / 256);
         }
         public string Extra { get; set; }
         private string getSizeString(ulong size)
@@ -400,73 +354,73 @@ namespace RVMCore.GoogleWarpper
         {
             this.val = (ulong)val;
             this.Extra = extra;
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Val");
-            this.OnPropertyChanged("Text");
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Val");
+            this.NotifyPropertyChanged("Text");
         }
         public void SetValue(int val, int max, string extra)
         {
             this.val = (ulong)val;
             this.max = (ulong)max;
             this.Extra = extra;
-            this.OnPropertyChanged("Val");
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Text");
+            this.NotifyPropertyChanged("Val");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Text");
         }
         public void SetValue(long val, string extra)
         {
             this.val = (ulong)val;
             this.Extra = extra;
-            this.OnPropertyChanged("Val");
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Text");
+            this.NotifyPropertyChanged("Val");
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Text");
         }
         public void SetValue(long val, long max, string extra)
         {
             this.max = (ulong)max;
             this.val = (ulong)val;
             this.Extra = extra;
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Val");
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Text");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Val");
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Text");
         }
         public void SetValue(long val, long max, long extra)
         {
             this.max = (ulong)max;
             this.val = (ulong)val;
-            this.Extra = getSizeString((ulong)extra) + "//s";
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Text");
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Val");
+            this.Extra = getSizeString((ulong)extra) + @"/s";
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Text");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Val");
         }
         public void SetValue(int val, int max, int extra)
         {
             this.max = (ulong)max;
             this.val = (ulong)val;
-            this.Extra = getSizeString((ulong)extra) + "//s";
-            this.OnPropertyChanged("Extra");
-            this.OnPropertyChanged("Text");
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Val");
+            this.Extra = getSizeString((ulong)extra) + @"/s";
+            this.NotifyPropertyChanged("Extra");
+            this.NotifyPropertyChanged("Text");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Val");
         }
         public void SetValue(int val, int max)
         {
             this.max = (ulong)max;
             this.val = (ulong)val;
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Text");
-            this.OnPropertyChanged("Val");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Text");
+            this.NotifyPropertyChanged("Val");
         }
         public void SetValue(long val, long max)
         {
             this.max = (ulong)max;
             this.val = (ulong)val;
-            this.OnPropertyChanged("Max");
-            this.OnPropertyChanged("Text");
-            this.OnPropertyChanged("Val");
+            this.NotifyPropertyChanged("Max");
+            this.NotifyPropertyChanged("Text");
+            this.NotifyPropertyChanged("Val");
         }
         public ProgressInfo()
         {
@@ -488,36 +442,18 @@ namespace RVMCore.GoogleWarpper
                 else return "--" + this.FileName;
             }
         }
-        public string FileName { get { return System.IO.Path.GetFileName(this.FullPath); } }
+        public string FileName => System.IO.Path.GetFileName(this.FullPath); 
         public string FullPath { get; }
-        public bool IsUploading { get { return System.IO.File.Exists(RVMCore.GoogleWarpper.GoogleDrive.GetUploadStatusPath(this.FullPath)); } }
-        private bool _IsOVer;
-        public bool IsOver
-        {
-            get
-            {
-                return _IsOVer;
-            }
-            set
-            {
-                this._IsOVer = value;
-                this.NotifyPropertyChanged("ShowName");
-            }
-        }
-        public string RemotePath
-        {
-            get
-            {
-                return System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
-            }
-        }
-        public string Size
-        {
-            get
-            {
-                return getSizeString((ulong)Length);
-            }
-        }
+        public bool IsUploading => System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.FullPath)); 
+
+        public bool IsChangeFather { get; } = false;
+        public string OldFatherPath { get; } = null;
+        public bool GoForUpload { get; private set; } = true;
+        public bool IsOver { get; set; }
+        public string RemotePath=> System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");           
+        
+        public string Size=> getSizeString((ulong)Length);
+
         public long Length { get; private set; }
         public UploadFile(string filePath)
         {
@@ -526,20 +462,21 @@ namespace RVMCore.GoogleWarpper
             var fileinfo = new System.IO.FileInfo(filePath);
             this.Length = fileinfo.Length;
         }
+        public UploadFile(RmtFile file)
+        {
+            FullPath = file.FullFilePath;
+            this.IsChangeFather = file.IsFatherUpdate;
+            this.OldFatherPath = file.OldFatherName;
+            this.GoForUpload = file.ProcessAnyway;
+            IsOver = false;
+            var fileinfo = new System.IO.FileInfo(file.FullFilePath);
+            this.Length = fileinfo.Length;
+        }
         public void UpdateData()
         {
             this.NotifyPropertyChanged("ShowName");
         }
-        private bool _uploadNow = true;
-        public bool UploadNow { get
-            {
-                return _uploadNow;
-            }
-            set
-            {
-                SetProperty(ref _uploadNow,value);
-            }
-        }
+        public bool UploadNow { get; set; } = true;
 
         public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)
         {
@@ -598,7 +535,7 @@ namespace RVMCore.GoogleWarpper
             }
         }
 
-        public System.Threading.ThreadState ThreadState
+        public ThreadState ThreadState
         {
             get
             {
@@ -617,7 +554,15 @@ namespace RVMCore.GoogleWarpper
         {
             return input.FullPath;
         }
+        public static implicit operator UploadFile(RmtFile input)
+        {
+            return new UploadFile(input);
+        }
 
+        public static implicit operator RmtFile(UploadFile input)
+        {
+            return new RmtFile(input.FullPath, input.IsChangeFather, input.OldFatherPath, input.GoForUpload);
+        }
         public static bool operator ==(UploadFile obj1, UploadFile obj2)
         {
             if (obj1 is null || obj2 is null) return false;

@@ -49,19 +49,19 @@ namespace RVMCore
             }
             if (margs.Any(x => x.Equals("-mirakurun", StringComparison.OrdinalIgnoreCase)))
             {
-                var wpfwindow = new RVMCore.MirakurunWarpper.MirakurunViewer();
+                var wpfwindow = new MirakurunWarpper.MirakurunViewer();
                 ElementHost.EnableModelessKeyboardInterop(wpfwindow);
                 if (wpfwindow.ShowDialog() == true) return true;
             }
             if (margs.Any(x => x.Equals("-cloud", StringComparison.OrdinalIgnoreCase)))
             {
-                var wpfwindow = new RVMCore.Forms.CloudViewer();
+                var wpfwindow = new MasterView.CloudViewer();
                 ElementHost.EnableModelessKeyboardInterop(wpfwindow);
                 if (wpfwindow.ShowDialog() == true) return true;
             }
             if (margs.Any(x => x.Equals("-upload", StringComparison.OrdinalIgnoreCase)))
             {
-                var wpfwindow = new RVMCore.Forms.Uploader();
+                var wpfwindow = new MasterView.Uploader();
                 ElementHost.EnableModelessKeyboardInterop(wpfwindow);
                 if (wpfwindow.ShowDialog() == true) return true;
             }
@@ -340,15 +340,13 @@ namespace RVMCore
                         Targetfolder = System.IO.Path.Combine(Targetfolder, Share.GetTimeSpan(para.StartTime, para.StartTime) + programName);
                         Console.WriteLine("Try find folder : " + e.Message);
                     }
-                    mFile.FullFilePath = Targetfolder;
+                    mFile.FullFilePath = System.IO.Path.Combine(Targetfolder, fileName);
                     //this will make sure the date period at the head of folder name is correct.
-                    Share.RenameDirUpToDate(ref Targetfolder, para.EndTime); 
-                    
-                    if (!Targetfolder.Equals(mFile.FullFilePath))
+                    if (Share.RenameDirUpToDate(ref Targetfolder, para.EndTime))
                     {//this is for upload process . notify that the folder name has been changed.
-                        mFile.OldFatherName = mFile.FullFilePath;
+                        mFile.OldFatherName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(mFile.FullFilePath));
                         mFile.IsFatherUpdate = true;
-                        mFile.FullFilePath = Targetfolder;
+                        mFile.FullFilePath = System.IO.Path.Combine(Targetfolder, fileName);
                     }
                     Console.WriteLine("Target folder is : " + Targetfolder);
                     if (!System.IO.Directory.Exists(Targetfolder))
@@ -379,6 +377,7 @@ namespace RVMCore
             }
             else
             {
+                mFile.FullFilePath = System.IO.Path.Combine(Targetfolder, fileName);
                 FileMovier(para.FilePath, System.IO.Path.Combine(Targetfolder, fileName));
                 para.FilePath = System.IO.Path.Combine(Targetfolder, fileName);
                 if (epgAccess==null )

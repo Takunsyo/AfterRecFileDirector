@@ -1,62 +1,14 @@
-﻿using System;
-using System.Collections.ObjectModel;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static RVMCore.Forms.IconHelper.IconReader;
+﻿using Google.Apis.Drive.v3.Data;
 using RVMCore.GoogleWarpper;
-using Google.Apis.Drive.v3.Data;
-using System.Windows.Media;
-using System.Threading;
-using System.Windows.Threading;
-using System.Windows.Data;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Windows.Data;
+using System.Windows.Media;
+using static RVMCore.Forms.IconHelper.IconReader;
 
-namespace RVMCore.Forms
+namespace RVMCore.MasterView
 {
-    public class CloudViewerViewModel : ViewModelBase, IDisposable
-    {
-        private GoogleDrive gService;
-
-        private ObservableCollection<DriveTree> _treeView;
-        public ObservableCollection<DriveTree> TreeView
-        {
-            get { return _treeView; }
-            set { SetProperty(ref _treeView, value); }
-        }
-
-        public CloudViewerViewModel()
-        {
-            gService = new GoogleDrive();
-            TreeView =new ObservableCollection<DriveTree>();
-            TreeView.Add(new DriveTree(gService.Root, gService));
-            var q = "sharedWithMe = true and mimeType = 'application/vnd.google-apps.folder'";
-            var mfile = gService.GetGoogleFiles(q, false).Where(x => x.Parents == null);
-            foreach (var i in mfile)
-            {
-                TreeView.Add(new DriveTree(i, gService));
-            }
-        }
-
-        public CloudViewerViewModel(GoogleDrive service)
-        {
-            gService = service;
-            TreeView = new ObservableCollection<DriveTree>();
-            TreeView.Add(new DriveTree(gService.Root, gService));
-            var q = "sharedWithMe = true and mimeType = 'application/vnd.google-apps.folder'";
-            var mfile = gService.GetGoogleFiles(q, false).Where(x => x.Parents == null);
-            foreach (var i in mfile)
-            {
-                TreeView.Add(new DriveTree(i, gService));
-            }
-        }
-
-        public void Dispose()
-        {
-            gService.Dispose();
-        }
-    }
 
     public class DriveTree : ViewModelBase
     {
@@ -68,72 +20,50 @@ namespace RVMCore.Forms
 
         #region"Properties"
         private bool _isExpanded = false;
-        private bool _isSelected = false;
-        private DriveTree _parent = null;
-        private ObservableCollection<DriveTree> _childs = null;
-        private string _text;
-        dynamic _odds = null;
         private static ObservableCollection<DriveTree> Dummy = new ObservableCollection<DriveTree>() { new DriveTree() };
 
-        public bool IsSelected
-        {
-            get { return _isSelected; }
-            set { SetProperty(ref _isSelected, value); }
-        }
+        public bool IsSelected { get; set; }
 
         /// <summary>
         /// The item has been expanded.
         /// </summary>
         public bool IsExpanded
         {
-            get { return _isExpanded; }
-            set {
-                SetProperty(ref _isExpanded, value);
-                if ((value & this.Expandible &  (this._childs != null && this._childs.Equals(Dummy)))) ExpandMe();
+            get => _isExpanded;
+            set
+            {
+                if ((value & this.Expandible & (this.Childs != null && this.Childs.Equals(Dummy)))) ExpandMe();
+                this._isExpanded = value;
             }
         }
 
         /// <summary>
         /// The parent of current object, null if is root.
         /// </summary>
-        public DriveTree Parent
-        {
-            get { return _parent; }
-            set { SetProperty(ref _parent, value); }
-        }
+        public DriveTree Parent { get; set; }
 
         /// <summary>
         /// Child items of this cbject.
         /// <para>Will call <see cref="ExpandMe"/> method when getting value of this property.</para>
         /// </summary>
-        public ObservableCollection<DriveTree> Childs
-        {
-            get
-            {
-                return _childs;
-            }
-            set { SetProperty(ref _childs, value); }
-        }
+        public ObservableCollection<DriveTree> Childs { get; set; }
 
         /// <summary>
         /// View name of this object.
         /// </summary>
-        public string Text
-        {
-            get { return _text; }
-            set { SetProperty(ref _text, value); }
-        }
-        
+        public string Text { get; set; }
+
         /// <summary>
         /// View Icon of this object.
         /// </summary>
         public ImageSource Icon
         {
-            get {
+            get
+            {
                 if (this.Text.IsNullOrEmptyOrWhiltSpace()) return null;
                 try
                 {
-                    return GetFileIcon(System.IO.Path.GetExtension(this.Text),this.Expandible);
+                    return GetFileIcon(System.IO.Path.GetExtension(this.Text), this.Expandible);
                 }
                 catch
                 {
@@ -146,18 +76,15 @@ namespace RVMCore.Forms
         /// <summary>
         /// The metadata include in this object.
         /// </summary>
-        public dynamic Odds
-        {
-            get { return _odds; }
-            set { SetProperty(ref _odds, value); }
-        }
+        public dynamic Odds { get; set; }
 
         /// <summary>
         /// indecate that this object is a folder.
         /// </summary>
         public bool Expandible
         {
-            get {
+            get
+            {
                 if (this.isGoogle)
                 {
                     if (Odds is null) return true;
@@ -170,6 +97,8 @@ namespace RVMCore.Forms
             }
         }
         #endregion
+
+        #region Constrasters
         public DriveTree()
         {
             this.Text = "DUMMY__DUMMY";
@@ -196,7 +125,7 @@ namespace RVMCore.Forms
             }
         }
 
-        public DriveTree(File mFile ,GoogleDrive service, DriveTree mParent = null)
+        public DriveTree(File mFile, GoogleDrive service, DriveTree mParent = null)
         {
             this.Parent = mParent;
             this.Text = mFile.Name;
@@ -208,6 +137,7 @@ namespace RVMCore.Forms
                 this.Childs = Dummy;
             }
         }
+        #endregion
         private async void ExpandMe()
         {
             if (Odds is null) return;
@@ -223,7 +153,7 @@ namespace RVMCore.Forms
                         BindingOperations.EnableCollectionSynchronization(this.Childs, _mLock);
                         var id = this.Odds.Id;
                         var q = string.Format("'{0}' in parents", id);
-                        Tuple<IEnumerable< File >,string> tuple = await Service.GetGoogleFilesAsync(token, 20, q, false);
+                        Tuple<IEnumerable<File>, string> tuple = await Service.GetGoogleFilesAsync(token, 20, q, false);
                         foreach (var i in tuple.Item1)
                         {
                             this.Execute(() =>
@@ -240,5 +170,4 @@ namespace RVMCore.Forms
             }
         }
     }
-
 }
