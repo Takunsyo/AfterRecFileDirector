@@ -80,7 +80,7 @@ namespace RVMCore
             var startY = start.Year - 2000;
             // EndDate
             var endQ = Conversion.Fix(over.Month / (double)3) + ((over.Month % 3) > 0 ? 1 : 0);
-            var endY = start.Year - 2000;
+            var endY = over.Year - 2000;
             // result
             return string.Format("[Q{0}'{1},Q{2}'{3}]", startQ, startY, endQ, endY);
         }

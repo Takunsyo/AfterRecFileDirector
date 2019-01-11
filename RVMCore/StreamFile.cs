@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 namespace RVMCore
 {
     [Serializable,Obsolete("This object is for Output infomation only.",false)]
-    internal class StreamFile : ISerializable
+    public class StreamFile : ISerializable
     {
         /// <summary> %1 (-i)録画したファイルのフルパース </summary>
         public string FilePath;
