@@ -28,7 +28,7 @@ namespace RVMCoreTest
 #endif
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            //Application.Run(new Form1());
+            Application.Run(new Form1());
             //var wpfwindow = new RVMCore.Forms.Uploader();
             //var wpfwindow = new RVMCore.MasterView.MasterViewControl();
             //var wpfwindow = new RVMCore.Forms.CloudViewer();
@@ -38,24 +38,6 @@ namespace RVMCoreTest
             //RVMCore.TVAFT.SortFile(new string[] { "-cloud" });
             //RVMCore.TVAFT.SortFile(new string[] { "-main" });
             //Application.Run(new RVMCore.Forms.Window1());
-            //var client = new RVMCore.PipeClient<RmtFile>();
-            //client.Send(new RmtFile(@"D:\SHARED\testfile.mp4"), "RVMCoreUploader");
-            //var access = new RVMCore.EPGStationWarpper.EPGAccess(SettingObj.Read());
-            //var allItem = access.GetRules();
-            //foreach(var i in allItem)
-            //{
-            //    Debug.WriteLine(i.keyword);
-            //}
-            //var mirakurun = new RVMCore.MirakurunWarpper.MirakurunService("http://192.168.0.2:40772/");
-            //var wpfwindow = new RVMCore.MasterView.MirakurunLogView(mirakurun);
-            //ElementHost.EnableModelessKeyboardInterop(wpfwindow);
-            //if (wpfwindow.ShowDialog() == true) return;
-            foreach(var i in Share.GetFibonacciSequence())
-            {
-                if (i > 1000) break;
-                Console.WriteLine(i.ToString());
-            }
-
         }
     }
 

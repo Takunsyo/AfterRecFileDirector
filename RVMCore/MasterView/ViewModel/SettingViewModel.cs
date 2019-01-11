@@ -12,6 +12,11 @@ namespace RVMCore.MasterView
             data = SettingObj.Read();
         }
 
+        public DialogResult DialogResult
+        {
+            get; private set;
+        }
+
         public string RootFolder
         {
             get => data.StorageFolder;
@@ -147,7 +152,11 @@ namespace RVMCore.MasterView
             set => data.Mirakurun_ServiceAddr = value; //Need to verify data.
         }
 
-        public ICommand SaveObj => new CustomCommand(this.data.Save);
+        public ICommand SaveObj => new CustomCommand(()=>
+        {
+            this.data.Save();
+            this.DialogResult = DialogResult.OK;
+        });
         
 
         public ICommand ResetObj => new CustomCommand(() => 

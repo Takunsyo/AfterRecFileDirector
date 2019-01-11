@@ -319,7 +319,7 @@ namespace RVMCore
                 System.IO.Directory.CreateDirectory(Targetfolder);
             if (para.Genre.HasFlag(ProgramGenre.Anime) || para.Genre.HasFlag(ProgramGenre.Drama) || para.Genre.HasFlag(ProgramGenre.Variety))
             { // those programs has genre of anime drama or variety could be in series. if that is the case make a folder to hold them.
-                string programName = Share.FindTitle(para.Title); //find title.
+                string programName = MasterHelper.FindTitle(para.Title); //find title.
                 if (!programName.Equals(para.Title)) // if the title find by program doesn't match it's full name means it's in a series.
                 {
                     FolderList = System.IO.Directory.GetDirectories(Targetfolder);
@@ -337,12 +337,12 @@ namespace RVMCore
                     }
                     catch (Exception e)
                     { //no match so far so make a one.
-                        Targetfolder = System.IO.Path.Combine(Targetfolder, Share.GetTimeSpan(para.StartTime, para.StartTime) + programName);
+                        Targetfolder = System.IO.Path.Combine(Targetfolder, MasterHelper.GetTimeSpan(para.StartTime, para.StartTime) + programName);
                         Console.WriteLine("Try find folder : " + e.Message);
                     }
                     mFile.FullFilePath = System.IO.Path.Combine(Targetfolder, fileName);
                     //this will make sure the date period at the head of folder name is correct.
-                    if (Share.RenameDirUpToDate(ref Targetfolder, para.EndTime))
+                    if (MasterHelper.RenameDirUpToDate(ref Targetfolder, para.EndTime))
                     {//this is for upload process . notify that the folder name has been changed.
                         mFile.OldFatherName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(mFile.FullFilePath));
                         mFile.IsFatherUpdate = true;

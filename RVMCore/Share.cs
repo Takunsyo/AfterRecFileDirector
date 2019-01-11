@@ -1,20 +1,13 @@
 ﻿using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace RVMCore
 {
-    public static class Share
+    public static class MasterHelper
     {
          /// <summary>
         ///  A TV program witch runs on seasons will contain a start time and a end time.
@@ -24,6 +17,7 @@ namespace RVMCore
             public DateTime StartQuarterly;
             public DateTime EndQuarterly;
         }
+
         /// <summary>
         /// Get time span from a <see cref="String"/>
         /// </summary>
@@ -74,6 +68,7 @@ namespace RVMCore
             }
             return mResult;
         }
+
         /// <summary>
         /// Get time span from <see cref="Date"/>s to <see cref="String"/>
         /// </summary>
@@ -89,16 +84,16 @@ namespace RVMCore
             // result
             return string.Format("[Q{0}'{1},Q{2}'{3}]", startQ, startY, endQ, endY);
         }
+
         /// <summary>
         /// Get time span from <see cref="ProgramTimeSpan"/> to <see cref="String"/>
         /// </summary>
         /// <returns>a string looks like "[Q1'18,Q1'18]"</returns>
-        public static string GetTimeSpan(this ProgramTimeSpan span)
-        {
-            return GetTimeSpan(span.StartQuarterly, span.EndQuarterly);
-        }
+        public static string GetTimeSpan(this ProgramTimeSpan span)=>
+            GetTimeSpan(span.StartQuarterly, span.EndQuarterly);
+
         /// <summary>
-        /// Find the genral title of the TV program.
+        /// Find the general title of the TV program.
         /// </summary>
         public static string FindTitle(string str)
         {
@@ -147,12 +142,14 @@ namespace RVMCore
             // pet = "[零一二三四五六七八九十百千萬億万亿壹貳叄肆伍陸柒捌玖拾佰仟贰叁陆]"
             return str.Trim().CheckAgain();
         }
+
         private static string CheckString(this string input)
         {
             string str = input.Replace("＃", "#");
             str = Regex.Replace(str, @"[\<|\>|\|\\\/:]", x => { return Strings.StrConv(x.Value, VbStrConv.Wide); });
             return Regex.Replace(str, @"(?<=[aA-zZ0-9])\s(?=[aA-zZ0-9])", " ");
         }
+
         private static string CheckAgain(this string input)
         {
             string str = input;
@@ -160,9 +157,10 @@ namespace RVMCore
             str = Regex.Replace(str, @"(^(★|☆|▲|▼|▽|△|●|〇|◎)+)|((★|☆|▲|▼|▽|△|●|〇|◎)+$)", "");
             return str.Trim();
         }
-            /// <summary>
-            /// Rename folder, change it's time stamp up to date.
-            /// </summary>
+
+        /// <summary>
+        /// Rename folder, change it's time stamp up to date.
+        /// </summary>
         public static bool RenameDirUpToDate(ref string dirPath, DateTime newDate)
         {
             if (!System.IO.Directory.Exists(dirPath))
@@ -181,17 +179,20 @@ namespace RVMCore
                 try
                 {
                     System.IO.Directory.Move(dirPath, dirName);
+                    dirPath = dirName;
+                    return true;
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e.Message);
                 }
-                dirPath = dirName;
-                return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// A just for fun method get fibonacci sequence.
+        /// </summary>
         public static IEnumerable<ulong> GetFibonacciSequence()
         {
             ulong x = 0 , y =1;
@@ -199,9 +200,87 @@ namespace RVMCore
             {                
                 yield return y;
                 var tmp = y;
-                y += x;
+                try{
+                    y += x;
+                }catch{//Overflow.
+                    break;}
                 x = tmp;
             }
         }
+
+        /// <summary>
+        /// Foreach extension method for <see cref="IEnumerable{T}"/> object using iterator.
+        /// <para>*Faster then foreach statement in certen instance.</para>
+        /// </summary>
+        /// <typeparam name="T">Input collection <see cref="Type>"/></typeparam>
+        /// <typeparam name="TResult">Return collection <see cref="Type"/></typeparam>
+        /// <param name="input">Input collection.</param>
+        /// <param name="func">Delegation for the foreach statement.</param>
+        /// <returns>A collection processed by <see cref="Func{T, TResult}"/> paramater in a foreach style.</returns>
+        public static IEnumerable<TResult> ForEach<T, TResult>(this IEnumerable<T> input, Func<T, TResult> func)
+        {
+            if (input is null || func is null) yield break;
+            foreach (T item in input) yield return func(item);
+        }
+
+        /// <summary>
+        /// Foreach extension method for <see cref="IEnumerable{T}"/> object using iterator.
+        /// <para>*Faster then foreach statement in certen instance.</para>
+        /// </summary>
+        /// <typeparam name="T">Collection <see cref="Type"/>.</typeparam>
+        /// <param name="input">Input collection.</param>
+        /// <param name="action">Delegation for the foreach statement.</param>
+        /// <returns>A collection process by <see cref="Action{T}"/> paramater in a foreach style.</returns>
+        public static IEnumerable<T> ForEach<T>(this IEnumerable<T> input, Action<T> action)
+        {
+            if (input is null || action is null) yield break;
+            foreach (T item in input)
+            {
+                action(item);
+                yield return item;
+            }
+        }
+
+        /// <summary>
+        /// Append an array after another array.
+        /// </summary>
+        /// <typeparam name="T">Array collection <see cref="Type"/>.</typeparam>
+        /// <param name="source">Base array, index from 0.</param>
+        /// <param name="array">Second array, index after base array's last item.</param>
+        /// <returns>A full array.</returns>
+        public static T[] AppendArray<T>(this T[] source, T[] array)
+        {
+            if (source == null & array == null) return null;
+            if (source == null) return array;
+            if (array == null) return source;
+            int ltmp = source.Length;
+            var tmp = source;
+            Array.Resize(ref tmp, ltmp + array.Length);
+            Array.Copy(array, 0, tmp, ltmp, array.Length);
+            return tmp;
+        }
+        /// <summary>
+        /// Append an array after another array.
+        /// </summary>
+        /// <typeparam name="T">Array collection <see cref="Type"/>.</typeparam>
+        /// <param name="source">Base array, index from 0.</param>
+        /// <param name="array">Second array, index after base array's last item.</param>
+        /// <returns>A full array.</returns>
+        //public static void AppendArray2<T>(this ref T[] source, T[] array)
+        //{
+        //    if (source == null & array == null) return;
+        //    if (source == null)
+        //    {
+        //        source = array;
+        //        return;
+        //    }
+
+        //    if (array == null) return;
+        //    int ltmp = source.Length;
+        //    var tmp = source;
+        //    Array.Resize(ref tmp, ltmp + array.Length);
+        //    Array.Copy(array, 0, tmp, ltmp, array.Length);
+        //    source = tmp;
+        //}
     }
 }

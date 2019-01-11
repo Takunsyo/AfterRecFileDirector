@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Windows.Media;
 using System.Linq;
 using System.Collections.ObjectModel;
 using System.Windows.Forms;
 using System.Threading;
-using RVMCore.Forms;
 using System.Windows.Data;
 using RVMCore.GoogleWarpper;
+using RVMCore.MasterView.ViewModel;
 
 namespace RVMCore.MasterView
 {
@@ -100,6 +99,7 @@ namespace RVMCore.MasterView
                         ex.Message.InfoLognConsole();
                     }
                     if (this.mUpObj is null) break;
+                    this.mUpObj.RefreshData();
                     string remot = this.mUpObj.RemotePath;
                     MainName = "[Uploading]" + this.mUpObj.FileName;
                     NowProcressingContent = this.mUpObj;
@@ -107,7 +107,7 @@ namespace RVMCore.MasterView
                     ProcessNowState = true;
                     bool isSuccess = false;
                     if (!System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.mUpObj)))
-                    {   
+                    {   //if this is the first time this file is being upload.
                         if (!(bool)Service.RemoteFileExists(this.mUpObj, remot,false))
                         {
                             ProcessNowState = false;
@@ -119,12 +119,7 @@ namespace RVMCore.MasterView
                                 if (!remotePath.IsNullOrEmptyOrWhiltSpace())
                                 {
                                     parent = Service.GetGoogleFolderByPath(remotePath);
-                                    var id = parent.Id;
-                                    parent = new Google.Apis.Drive.v3.Data.File
-                                    {
-                                        Name = nowParentName
-                                    };
-                                    Service.UpdateFile(id, parent);
+                                    Service.UpdateFile(parent.Id, nowParentName);
                                 }
                             }
                             isSuccess = this.mUpObj.Upload(Service);
@@ -136,7 +131,7 @@ namespace RVMCore.MasterView
                         }
                     }
                     else
-                    {
+                    { //if this is a resume upload.
                         ProcessNowState = false;
                         isSuccess = this.mUpObj.Upload(Service);
                     }
@@ -154,13 +149,22 @@ namespace RVMCore.MasterView
             Service.UpdateProgressChanged += new UpdateProgress(mProcessHandller);
         }
 
-        private void midObjectFileRecivedHdlr(RmtFile e)
+        private void midObjectFileRecivedHdlr(object sender,RmtFile e)
         {
-            if (e is null) return; 
-            var locker = new object();
-            BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
-            this.Execute(() => this.FileList.Add(e.FullFilePath));
-            BindingOperations.DisableCollectionSynchronization(this.FileList);
+            if (e is null) return;
+            try
+            {
+                var locker = new object();
+                BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
+                this.Execute(() => this.FileList.Add(new UploadFile(e)));
+                BindingOperations.DisableCollectionSynchronization(this.FileList);
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show($"File:[{e?.FullFilePath}] \nERR:[{ex.Message}]", 
+                    "Record message failed to process!",
+                    MessageBoxButtons.OK,MessageBoxIcon.Error);
+            }
         }
 
 
@@ -194,7 +198,7 @@ namespace RVMCore.MasterView
             {
                 mdlg.CheckFileExists = true;
                 mdlg.Filter = "Transport Stream(*.ts;*.m2ts)|*.ts;*.m2ts|Meta Data(*.meta;*.xml)|*.meta;*.xml|All file(*.*)|*.*";
-                mdlg.InitialDirectory = @"E:\1[アニメ類]\";
+                //mdlg.InitialDirectory = @"E:\1[アニメ類]\";
                 mdlg.Multiselect = true;
                 if (mdlg.ShowDialog() == DialogResult.OK)
                 {
@@ -205,6 +209,7 @@ namespace RVMCore.MasterView
                 }
                 else return;
             }
+            FileList.ForEach(x => x.RefreshData());
             this.TotalLength = FileList.Sum(x => x.Length);
             this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0);
         }
@@ -307,311 +312,4 @@ namespace RVMCore.MasterView
         }
         #endregion
     }
-
-    public class ProgressInfo : ViewModelBase
-    {
-        public string Text
-        {
-            get
-            {
-                if (max == val) return "" + Extra;
-                return "[" + getSizeString(val) + "/" + getSizeString(max) + "]" + Extra;
-            }
-        }
-        private ulong max;
-        public int Max
-        {
-            get => (int)(max / 256);
-        }
-        private ulong val;
-        public int Val
-        {
-            get => (int)(val / 256);
-        }
-        public string Extra { get; set; }
-        private string getSizeString(ulong size)
-        {
-            string tmp = "";
-            if (size > 1024 * 1024 * 512)
-            {
-                tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
-            }
-            else if (size > 1024 * 512)
-            {
-                tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
-            }
-            else if (size > 1024)
-            {
-                tmp = ((float)size / 1024).ToString("F2") + " Kb";
-            }
-            else
-            {
-                tmp = (size).ToString() + " Byte";
-            }
-            return tmp;
-        }
-        public void SetValue(int val, string extra)
-        {
-            this.val = (ulong)val;
-            this.Extra = extra;
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Val");
-            this.NotifyPropertyChanged("Text");
-        }
-        public void SetValue(int val, int max, string extra)
-        {
-            this.val = (ulong)val;
-            this.max = (ulong)max;
-            this.Extra = extra;
-            this.NotifyPropertyChanged("Val");
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Text");
-        }
-        public void SetValue(long val, string extra)
-        {
-            this.val = (ulong)val;
-            this.Extra = extra;
-            this.NotifyPropertyChanged("Val");
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Text");
-        }
-        public void SetValue(long val, long max, string extra)
-        {
-            this.max = (ulong)max;
-            this.val = (ulong)val;
-            this.Extra = extra;
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Val");
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Text");
-        }
-        public void SetValue(long val, long max, long extra)
-        {
-            this.max = (ulong)max;
-            this.val = (ulong)val;
-            this.Extra = getSizeString((ulong)extra) + @"/s";
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Text");
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Val");
-        }
-        public void SetValue(int val, int max, int extra)
-        {
-            this.max = (ulong)max;
-            this.val = (ulong)val;
-            this.Extra = getSizeString((ulong)extra) + @"/s";
-            this.NotifyPropertyChanged("Extra");
-            this.NotifyPropertyChanged("Text");
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Val");
-        }
-        public void SetValue(int val, int max)
-        {
-            this.max = (ulong)max;
-            this.val = (ulong)val;
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Text");
-            this.NotifyPropertyChanged("Val");
-        }
-        public void SetValue(long val, long max)
-        {
-            this.max = (ulong)max;
-            this.val = (ulong)val;
-            this.NotifyPropertyChanged("Max");
-            this.NotifyPropertyChanged("Text");
-            this.NotifyPropertyChanged("Val");
-        }
-        public ProgressInfo()
-        {
-            this.val = 0;
-            this.max = 100;
-            this.Extra = "";
-        }
-        
-    }
-
-    public class UploadFile : ViewModelBase
-    {
-        public string ShowName
-        {
-            get
-            {
-                if (this.IsOver) return "==" + this.FileName;
-                else if (this.IsUploading) return "->" + this.FileName;
-                else return "--" + this.FileName;
-            }
-        }
-        public string FileName => System.IO.Path.GetFileName(this.FullPath); 
-        public string FullPath { get; }
-        public bool IsUploading => System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.FullPath)); 
-
-        public bool IsChangeFather { get; } = false;
-        public string OldFatherPath { get; } = null;
-        public bool GoForUpload { get; private set; } = true;
-        public bool IsOver { get; set; }
-        public string RemotePath=> System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");           
-        
-        public string Size=> getSizeString((ulong)Length);
-
-        public long Length { get; private set; }
-        public UploadFile(string filePath)
-        {
-            FullPath = filePath;
-            IsOver = false;
-            var fileinfo = new System.IO.FileInfo(filePath);
-            this.Length = fileinfo.Length;
-        }
-        public UploadFile(RmtFile file)
-        {
-            FullPath = file.FullFilePath;
-            this.IsChangeFather = file.IsFatherUpdate;
-            this.OldFatherPath = file.OldFatherName;
-            this.GoForUpload = file.ProcessAnyway;
-            IsOver = false;
-            var fileinfo = new System.IO.FileInfo(file.FullFilePath);
-            this.Length = fileinfo.Length;
-        }
-        public void UpdateData()
-        {
-            this.NotifyPropertyChanged("ShowName");
-        }
-        public bool UploadNow { get; set; } = true;
-
-        public static IEnumerable<UploadFile> UploadFiles(IEnumerable<string> filePathes)
-        {
-            var tmp = new List<UploadFile>();
-            foreach (string i in filePathes)
-            {
-                tmp.Add(new UploadFile(i));
-            }
-            return tmp;
-        }
-
-        private Thread mWork = null;
-        public bool Upload(GoogleWarpper.GoogleDrive googleDrive)
-        {
-            bool result = false;
-            var workLoad = new ThreadStart(() =>
-            {
-                result = googleDrive.UploadResumable(this.FullPath, this.RemotePath) != null;
-            });
-            mWork = new Thread(workLoad);
-            mWork.IsBackground = true;
-            mWork.Start();
-            try
-            {
-                mWork.Join(Timeout.Infinite);
-            }
-            finally
-            {
-                mWork = null;
-                GC.Collect();
-            }
-            return result;
-        }
-
-        public void Abort()
-        {
-            if(!(mWork is null) && mWork.IsAlive)
-            {
-                mWork.Abort();
-            }
-        }
-
-        public void Pause()
-        {
-            if (!(mWork is null) && mWork.IsAlive)
-            {
-                mWork.Suspend();
-            }
-        }
-
-        public void Resume()
-        {
-            if (!(mWork is null) && mWork.IsAlive)
-            {
-                mWork.Resume();
-            }
-        }
-
-        public ThreadState ThreadState
-        {
-            get
-            {
-                if (mWork is null) return System.Threading.ThreadState.Unstarted;
-                return mWork.ThreadState;
-            }
-        }
-
-
-        public static implicit operator UploadFile(string input)
-        {
-            return new UploadFile(input);
-        }
-
-        public static implicit operator string(UploadFile input)
-        {
-            return input.FullPath;
-        }
-        public static implicit operator UploadFile(RmtFile input)
-        {
-            return new UploadFile(input);
-        }
-
-        public static implicit operator RmtFile(UploadFile input)
-        {
-            return new RmtFile(input.FullPath, input.IsChangeFather, input.OldFatherPath, input.GoForUpload);
-        }
-        public static bool operator ==(UploadFile obj1, UploadFile obj2)
-        {
-            if (obj1 is null || obj2 is null) return false;
-            return obj1.FullPath == obj2.FullPath;
-        }
-        public static bool operator !=(UploadFile obj1, UploadFile obj2)
-        {
-            if (obj1 is null || obj2 is null) return true;
-            return obj1.FullPath != obj2.FullPath;
-        }
-
-        public override int GetHashCode()
-        {
-            return this.FullPath.GetHashCode();
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is UploadFile)
-            {
-                return this == ((UploadFile)obj);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        private string getSizeString(ulong size)
-        {
-            string tmp = "";
-            if (size > 1024 * 1024 * 512)
-            {
-                tmp = ((float)size / 1024 / 1024 / 1024).ToString("F2") + " Gb";
-            }
-            else if (size > 1024 * 512)
-            {
-                tmp = ((float)size / 1024 / 1024).ToString("F2") + " Mb";
-            }
-            else if (size > 1024)
-            {
-                tmp = ((float)size / 1024).ToString("F2") + " Kb";
-            }
-            else
-            {
-                tmp = (size).ToString() + " Byte";
-            }
-            return tmp;
-        }
-    }
-
 }

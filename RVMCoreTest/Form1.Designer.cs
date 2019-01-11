@@ -35,6 +35,8 @@
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.lStatus = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
+            this.cmdJson = new System.Windows.Forms.TextBox();
+            this.button3 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
             // 
@@ -91,11 +93,30 @@
             this.button2.UseVisualStyleBackColor = true;
             this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
+            // cmdJson
+            // 
+            this.cmdJson.Location = new System.Drawing.Point(2, 328);
+            this.cmdJson.Name = "cmdJson";
+            this.cmdJson.Size = new System.Drawing.Size(743, 19);
+            this.cmdJson.TabIndex = 9;
+            // 
+            // button3
+            // 
+            this.button3.Location = new System.Drawing.Point(670, 353);
+            this.button3.Name = "button3";
+            this.button3.Size = new System.Drawing.Size(75, 23);
+            this.button3.TabIndex = 10;
+            this.button3.Text = "Send";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(748, 285);
+            this.ClientSize = new System.Drawing.Size(748, 440);
+            this.Controls.Add(this.button3);
+            this.Controls.Add(this.cmdJson);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.lStatus);
             this.Controls.Add(this.pictureBox2);
@@ -121,6 +142,8 @@
         //private System.Windows.Forms.ProgressBar progressBar1;
         private System.Windows.Forms.Label lStatus;
         private System.Windows.Forms.Button button2;
+        private System.Windows.Forms.TextBox cmdJson;
+        private System.Windows.Forms.Button button3;
     }
 }
 

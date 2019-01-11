@@ -95,12 +95,18 @@ namespace RVMCore.MasterView
             tvViewer.Show();
         });
 
+        private Setting mSetForm;
         public ICommand OpenSetting => new CustomCommand(() => {
-            if(!IsWindowOpen<Setting>())(new Setting()).Show();
+            if (!(mSetForm?.IsLoaded ?? false))
+                mSetForm = new Setting();
+            mSetForm.Show();
         });
 
+        private CloudViewer mCloud;
         public ICommand OpenCloud => new CustomCommand(() => {
-            if (!IsWindowOpen<CloudViewer>()) (new CloudViewer(this.Uploader.Service)).Show();
+            if (!(mCloud?.IsLoaded ?? false))
+                mCloud = new CloudViewer(this.Uploader.Service);
+            mCloud.Show();
         });
 
         private void Exit_Click(object sender, RoutedEventArgs e)
@@ -125,10 +131,29 @@ namespace RVMCore.MasterView
 
         public void InitializeMirakurun()
         {
-            var work = new Thread(new ThreadStart(() => { 
-                
+            var work = new Thread(new ThreadStart(() => {
+
                 //init mirakurun
-                mMirakurun = new MirakurunWarpper.MirakurunService(setting);
+                void InitService()
+                {
+                    try
+                    {
+                        mMirakurun = new MirakurunWarpper.MirakurunService(setting);
+                    }
+                    catch
+                    {
+                        if (MessageBox.Show("Mirakurun server address setting is not correct. " +
+                            "\nPlease make sure Mirakurun is accessible directly from this operating PC." +
+                            "\n\nDo you want to open setting dialog now?", "Setting Error", MessageBoxButton.YesNo, MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
+                        {
+                            var dialog = new Setting();
+                            dialog.ShowDialog();
+                            InitService();
+                        }
+                    }
+                }
+                InitService();
+                if (mMirakurun is null) return;
                 InitTunerView();
                 mMirakurun.EventRecived += MMirakurun_EventRecived;                
                 mMirakurun.SubscribeEvents(null,MirakurunWarpper.Apis.ResourceType.tuner);
@@ -180,14 +205,59 @@ namespace RVMCore.MasterView
         #endregion
 
         #region EPGStation
-        private List<EPGStationWarpper.Api.Reserve> epgReserveList;
+        /// <summary>
+        /// raw reserve datas
+        /// </summary>
+        private List<EPGStationWarpper.Api.Reserve> epgReservRawList { get; set; }
+        /// <summary>
+        /// all reserves except those are on recording.
+        /// </summary>
+        public ObservableCollection<EPGView> EpgReserveList 
+        {
+            get
+            {
+                if (epgReservRawList is null) return new ObservableCollection<EPGView>();
+                var tnow = MirakurunWarpper.MirakurunService.GetUNIXTimeStamp();
+                return new ObservableCollection<EPGView>(epgReservRawList?.Where(x =>
+                         x.program.startAt > tnow
+                    )?.Select(x => new EPGView(x)));
+            }
+        }
+            
+        /// <summary>
+        /// Main reserve update timer, for server com control.
+        /// </summary>
         private System.Timers.Timer EPGUpdateTimer;
+        /// <summary>
+        /// all reserves under recording.
+        /// </summary>
         public ObservableCollection<EPGView> EPGReserves { get; set; }
+                
 
         public void InitializeEPGStation()
         {
             //init EPG
-            mEPGAccess = new EPGStationWarpper.EPGAccess(setting);
+            void InitService()
+            {
+                try
+                {
+                    mEPGAccess = new EPGStationWarpper.EPGAccess(setting);
+                }
+                catch
+                {
+                    if(MessageBox.Show("EPGStation server address setting is not correct. " +
+                        "\nPlease make sure EPGStation is accessible directly from this operating PC." +
+                        "\n\nDo you want to open setting dialog now?","Setting Error",MessageBoxButton.YesNo,MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
+                    {
+                        var dialog = new Setting();
+                        dialog.ShowDialog();
+                        InitService();
+                    }
+                }
+            }
+
+            InitService();
+            if (mEPGAccess is null) return;
             var work = new Thread(new ThreadStart(() => {
                 EPGUpdateTimer = new System.Timers.Timer
                 {
@@ -199,57 +269,59 @@ namespace RVMCore.MasterView
                 EPGView.EPGchannels = new List<EPGStationWarpper.Api.EPGchannel>(mEPGAccess.GetChannels());
             }));
             work.Start();
+
+
         }
 
         private void EPGUpdate(object sender, System.Timers.ElapsedEventArgs e)
         {
-            //if (epgReserveList is null) Getschedule();
-            //epgReserveList.RemoveAll(x => x.program.endAt <= MirakurunWarpper.MirakurunService.GetUNIXTimeStamp());
-            //if (epgReserveList is null && epgReserveList.Count <3) Getschedule();
             Getschedule();
-            if (epgReserveList is null) return;
-            if (EPGReserves is null)
-            {
-                EPGReserves = new ObservableCollection<EPGView>();
-            }
-            //epgReserveList.Sort(delegate (EPGStationWarpper.Api.Reserve x, EPGStationWarpper.Api.Reserve y) 
-            //    {
-            //        return x.program.startAt.CompareTo(y.program.startAt);
-            //    });
-            var tmp = epgReserveList.TakeWhile(x => x.program.startAt <= MirakurunWarpper.MirakurunService.GetUNIXTimeStamp());
-            var locker = new object();
-            BindingOperations.EnableCollectionSynchronization(this.EPGReserves, locker);
-            this.Execute(() => {
-                if (tmp.Count() <= 0) { EPGReserves.Clear();return; }
-                foreach (var i in tmp)
+            NotifyPropertyChanged(nameof(EpgReserveList));
+            //for list view
+            object locker = new object();
+            if (EPGReserves is null) EPGReserves = new ObservableCollection<EPGView>();
+            BindingOperations.EnableCollectionSynchronization(EPGReserves, locker);
+            this.Execute(() => { 
+                var tmp1st = new ObservableCollection<EPGView>(
+                        epgReservRawList?.Where(x =>
+                            x.program.startAt <= MirakurunWarpper.MirakurunService.GetUNIXTimeStamp()
+                        )?.Select(x => new EPGView(x, true)));
+                if (tmp1st.Count <= 0)
                 {
-                    if(!EPGReserves.Any(x=> x.body.program.id == i.program.id))
-                    EPGReserves.Add(new EPGView(i));
+                    EPGReserves.Clear();
+                    return;
                 }
-                if (EPGReserves.Count == tmp.Count()) return;
-                while (true)
-                {
-                    try { 
-                        var i = EPGReserves.First(x => !tmp.Any(y => x.body.program.id == y.program.id));
+                var tmp2nd = EPGReserves.Intersect(tmp1st);
+                if(EPGReserves.Count > 0) { 
+                    var tmp3rd = EPGReserves.Except(tmp1st).ToList();
+
+                    foreach (var i in tmp3rd)
+                    {
                         EPGReserves.Remove(i);
                     }
-                    catch
-                    {
-                        break;
-                    }
                 }
-            });
+                var tmp4th = tmp1st.Except(tmp2nd);
+                foreach (var i in tmp4th)
+                {
+                    EPGReserves.Add(i);
+                }
+            }
+            );
         }
 
         private void Getschedule()
         {
             var locker = new object();
-            if (epgReserveList is null) epgReserveList = new List<EPGStationWarpper.Api.Reserve>();
-            BindingOperations.EnableCollectionSynchronization(this.epgReserveList, locker);
+            if (epgReservRawList is null) epgReservRawList = new List<EPGStationWarpper.Api.Reserve>();
+            BindingOperations.EnableCollectionSynchronization(this.epgReservRawList, locker);
             this.Execute(() => {
-                var tmp = mEPGAccess.GetReserves(0, 24);
+                epgReservRawList.RemoveAll(x => x.program.endAt <= MirakurunWarpper.MirakurunService.GetUNIXTimeStamp());
+                var tmp = mEPGAccess.GetReserves(0, 48);
                 if (tmp is null) return;
-                epgReserveList = new List<EPGStationWarpper.Api.Reserve>(tmp);
+                foreach(var i in tmp)
+                    if(epgReservRawList.Find(x => x.program.id == i.program.id) ==null)
+                        epgReservRawList.Add(i);
+                epgReservRawList.Sort((x, y) => x.program.startAt.CompareTo(y.program.startAt));
             });
         }
 
@@ -257,28 +329,36 @@ namespace RVMCore.MasterView
         {
             public static List<EPGStationWarpper.Api.EPGchannel> EPGchannels;
             public EPGStationWarpper.Api.Reserve body { get; }
-            private System.Timers.Timer timer;
-            public EPGView(EPGStationWarpper.Api.Reserve reserve)
+            /// <summary>
+            /// Secondary timer for reserve inner data update.
+            /// </summary>
+            private System.Timers.Timer EPGInnerUpdateTimer;
+            public EPGView(EPGStationWarpper.Api.Reserve reserve,bool start_timer = false)
             {
                 this.body = reserve;
                 this.startAt = body.program.startAt;
                 this.endAt = body.program.endAt;
-                timer = new System.Timers.Timer
+
+                if (start_timer)
                 {
-                    Interval = 100,
-                    AutoReset = true
-                };
-                timer.Elapsed += Timer_Elapsed;
-                timer.Start();
+                    EPGInnerUpdateTimer = new System.Timers.Timer
+                    {
+                        Interval = 100,
+                        AutoReset = true
+                    };
+                    EPGInnerUpdateTimer.Elapsed += Timer_Elapsed;
+                    EPGInnerUpdateTimer.Start();
+                }
             }
 
             private long startAt;
             private long endAt;
 
-            private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+            public void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
             {
-                long tnow = MirakurunWarpper.MirakurunService.GetUNIXTimeStamp();
-                if (tnow > endAt) { timer.Stop(); return; }
+                var tnow = MirakurunWarpper.MirakurunService.GetUNIXTimeStamp();
+                if (tnow < body.program.startAt) return;
+                if (tnow > endAt) return;
                 Now =(int)( tnow - startAt);
                 TimeLeft = (MirakurunWarpper.MirakurunService.GetDateTime(endAt)-DateTime.UtcNow).ToString("hh\\:mm\\:ss");
             }
@@ -290,23 +370,84 @@ namespace RVMCore.MasterView
                     return (int)(endAt - startAt);
                 }
             }
-            
+            /// <summary>
+            /// For progress bar showing.
+            /// </summary>
             public int Now { get; private set; }
-            public string TimeLeft { get; private set; }
-            public string Name
+            /// <summary>
+            /// Total time left.
+            /// </summary>
+            public string TimeLeft { get; private set; } = "";
+            /// <summary>
+            /// For show in menu.
+            /// </summary>
+            public string MenuHeader { get => $"{TimeString(body.program.startAt)}:{Name}"; }
+            private string TimeString(long time)
+            {
+                var T = MirakurunWarpper.MirakurunService.GetDateTime(time).ToLocalTime();
+                if(T.Date == DateTime.Now.Date)
+                {
+                    return $"[本　日 {T.ToString("HH:mm")}]";
+                }
+                else
+                {
+                    var culture = System.Globalization.CultureInfo.GetCultureInfo("ja-JP");
+                    var day = culture.DateTimeFormat.GetDayName(T.DayOfWeek);
+                    return $"[{day} {T.ToString("HH:mm")}]";
+                }
+            }
+            public string TimeSpan
             {
                 get
                 {
-                    return "[" + EPGchannels.First(x => x.id == body.program.channelId).name + "] " + body.program.name;
+                    var TSpanInMin = (int)((body.program.endAt - body.program.startAt) / 60000);
+                    switch (TSpanInMin)
+                    {
+                        case int sec when sec < 60:
+                            return $"[{sec.ToString("D2")}分]";
+                        default:
+                            var h = TSpanInMin / 60;
+                            var s = TSpanInMin - (h * 60);
+                            return $"[{h.ToString("D2")}時間" + (s == 0 ? "" : $"{s.ToString("D2")}分") + "]";
+                    }
                 }
             }
+            /// <summary>
+            /// For show in Popup.
+            /// </summary>
+            public string Name => $"[{EPGchannels.First(x => x.id == body.program.channelId).name}] {body.program.name}";
 
+               
             public string Genre
             {
                 get
                 {
                     return body.program.GenreString;
                 }
+            }
+            public override bool Equals(object obj)
+            {
+                if (obj is null) return false;
+                if(obj is EPGView)
+                {
+                    return ((EPGView)obj).body.program.id == this.body.program.id;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            public static bool operator == (EPGView obj1, EPGView obj2)
+            {
+                return obj1?.Equals(obj2) ?? false;
+            }
+            public static bool operator !=(EPGView obj1, EPGView obj2)
+            {
+                return !(obj1?.Equals(obj2) ?? false);
+            }
+            public override int GetHashCode()
+            {
+                return this.body.program.id.GetHashCode();
             }
         }
         #endregion
@@ -317,7 +458,6 @@ namespace RVMCore.MasterView
             return string.IsNullOrEmpty(name)
                 ? Application.Current?.Windows.OfType<T>()?.Any() ?? false
                 : Application.Current?.Windows.OfType<T>()?.Any(w => w.Name.Equals(name)) ?? false;
-            
         }
 
         #region ViewModel

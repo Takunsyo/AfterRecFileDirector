@@ -129,10 +129,30 @@
             </NotifyTray:TaskbarIcon.TrayToolTip>
             <NotifyTray:TaskbarIcon.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="_Show Cloud Viewer" Command="{Binding OpenCloud}"/>
-                    <MenuItem Header="_Show Uploader" Command="{Binding OpenUploader}"/>
-                    <MenuItem Header="_Show Mirakurun Logs" Command="{Binding OpenLogs}"/>
-                    <MenuItem Header="_Watch TV" Command="{Binding OpenTV}"/>                    
+                    <MenuItem Header="Show Cloud _Viewer" Command="{Binding OpenCloud}"/>
+                    <MenuItem Header="Show _Uploader" Command="{Binding OpenUploader}"/>
+                    <MenuItem Header="Show _Mirakurun Logs" Command="{Binding OpenLogs}"/>
+                    <MenuItem Header="_Watch TV" Command="{Binding OpenTV}"/>
+                    <MenuItem Header="_EPGStation Reserves" 
+                              ItemsSource="{Binding EpgReserveList}" HorizontalContentAlignment="Stretch">
+                        <MenuItem.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel HorizontalAlignment="Stretch"/>
+                            </ItemsPanelTemplate>
+                        </MenuItem.ItemsPanel>
+                        <MenuItem.ItemTemplate>
+                            <DataTemplate >
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Content="{Binding MenuHeader}" IsChecked="True"/>
+                                    <TextBlock TextAlignment="Right" Text="{Binding TimeSpan}" Grid.Column="1"/>
+                                </Grid>
+                            </DataTemplate>
+                        </MenuItem.ItemTemplate>
+                    </MenuItem>
                     <Separator />
                     <MenuItem Header="_App Settings" Command="{Binding OpenSetting}"/>
                     <MenuItem Header="_Exit Application" Click="Exit_Click"/>

@@ -25,7 +25,11 @@
             </TabItem>
         </TabControl>
         <TextBlock Text="{Binding ElementName=MainView,Path=SelectedItem.Text}" Grid.Column="1"/>
-        <TreeView Name="MainView" Grid.Column="1" Grid.Row="1" ItemsSource="{Binding Path=TreeView}">
+        <TreeView Name="MainView" Grid.Column="1" Grid.Row="1" ItemsSource="{Binding Path=TreeView}" 
+                  AllowDrop="True" PreviewMouseLeftButtonDown="MainView_PreviewMouseLeftButtonDown"
+                  PreviewMouseMove="MainView_PreviewMouseMove"
+                  DragEnter="MainView_DragEnter"
+                  Drop="MainView_Drop">
             <TreeView.Resources>
                 <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                     <Setter Property="IsExpanded" Value="{Binding Path=IsExpanded,Mode=TwoWay}"/>
@@ -33,8 +37,8 @@
                 </Style>
             </TreeView.Resources>
             <TreeView.ItemTemplate>
-                <HierarchicalDataTemplate DataType="{x:Type local:DriveTree}" ItemsSource="{Binding Path=Childs}">
-                        
+                <HierarchicalDataTemplate DataType="{x:Type local:DriveTree}" 
+                                          ItemsSource="{Binding Path=Childs}">                        
                     <!--<HierarchicalDataTemplate.ItemContainerStyle>
                         <Trigger Property="">
                             <DataTrigger Binding="{Binding Path=Expandible}" Value="True">

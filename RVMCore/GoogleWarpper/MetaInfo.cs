@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RVMCore.GoogleWarpper
 {
@@ -26,14 +22,15 @@ namespace RVMCore.GoogleWarpper
             return mimeType;
         }
 
-        public static string CheckStringForQuerry(this string querryString)
-        {
-            return querryString.Replace(@"'", @"\'");
-        }
+        /// <summary>
+        /// Make sure a query string is suitable for searching on google drive.
+        /// </summary>
+        public static string CheckStringForQuerry(this string querryString)=> querryString.Replace(@"'", @"\'");
 
-        public static bool IsFolder(this Google.Apis.Drive.v3.Data.File mfile) {
-            if (mfile.MimeType == null) return false;
-            return (mfile.MimeType.Equals("application/vnd.google-apps.folder"));
-        }
+        /// <summary>
+        /// Check if a <see cref="Google.Apis.Drive.v3.Data.File"/> object is a directory or not.
+        /// </summary>
+        public static bool IsFolder(this Google.Apis.Drive.v3.Data.File mfile) =>
+            mfile?.MimeType?.ToLower().Equals("application/vnd.google-apps.folder") ?? false;
     }
 }

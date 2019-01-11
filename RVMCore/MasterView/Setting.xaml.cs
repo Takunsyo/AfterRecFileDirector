@@ -29,6 +29,7 @@ namespace RVMCore.MasterView
         {
             if(MessageBox.Show("Are you ready to cancel?", "Cancel?", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
+                this.DialogResult = false;
                 this.Close();
             }
         }

@@ -12,11 +12,15 @@ namespace RVMCore
     /// <typeparam name="T">The Message object type for Server to listen.</typeparam>
     public class PipeServer<T> : IDisposable
     {
-        public delegate void MessageHandler(T message);
+        public delegate void MessageHandler(object sender,T message);
         public event MessageHandler PipeMessage;
         string _pipeName;
         private NamedPipeServerStream mPipe;
 
+        /// <summary>
+        /// Initialize a new <see cref="PipeServer{T}"/> object using a pipe name for accepting incoming datas.
+        /// </summary>
+        /// <param name="PipeName">The pipe name for <see cref="NamedPipeServerStream"/> object.</param>
         public PipeServer(string PipeName )
         {
             if (PipeName.IsNullOrEmptyOrWhiltSpace())
@@ -52,16 +56,22 @@ namespace RVMCore
                 // Get the pipe
                 // End waiting for the connection
                 pipe.EndWaitForConnection(iar);
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[0];
                 // Read the incoming message
-                pipe.Read(buffer, 0, 1024);
+                while (true)
+                {
+                    byte[] buf = new byte[256];
+                    var counter = pipe.Read(buf, 0, 256);
+                    if (counter == 0) break;
+                    buffer=buffer.AppendArray(buf);
+                }
                 // Convert byte buffer to string
                 string stringData = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
                 Debug.WriteLine(stringData);
 
                 // Pass message back to calling form
                 T message = JsonConvert.DeserializeObject<T>(stringData);
-                PipeMessage.Invoke(message);
+                PipeMessage.Invoke(this,message);
             }
             catch(Exception ex)
             {
@@ -81,12 +91,18 @@ namespace RVMCore
             }
         }
 
+        /// <summary>
+        /// Close named pipe and release it's resouce.
+        /// </summary>
         public void StopListen()
         {
-            if (this.mPipe != null)
+            if (this.mPipe != null)                
             this.mPipe.Close();
         }
 
+        /// <summary>
+        /// Present whether this object has been disposed or not.
+        /// </summary>
         public bool IsDisposed { get; private set; }
         public void Dispose()
         {

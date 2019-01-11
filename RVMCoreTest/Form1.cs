@@ -42,10 +42,10 @@ namespace RVMCoreTest
             //access.SubscribeEvents();
             //access.LogRecived += log;
             //access.SubscribeLogs();
-            var bot = new RVMCore.TelgeramBot.Bot("685379411:AAFdW8jh1t8uhr5N7leYM8pW-ldtZLL807Y");
-            bot.GetUpdates();
-            var me=bot.GetMe();
-            MessageBox.Show(me.id.ToString());
+            //var bot = new RVMCore.TelgeramBot.Bot("685379411:AAFdW8jh1t8uhr5N7leYM8pW-ldtZLL807Y");
+            //bot.GetUpdates();
+            //var me=bot.GetMe();
+            //MessageBox.Show(me.id.ToString());
         }
 
         private void mh(object sender, Event events)
@@ -73,6 +73,14 @@ namespace RVMCoreTest
         {
             ct.Cancel();
             access.StopSubscribeLogs();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            var obj = RVMCore.PipeClient<RVMCore.RmtFile>.GetMidObjectFromString(cmdJson.Text);
+            if (obj is null) return;
+            var client = new RVMCore.PipeClient<RVMCore.RmtFile>();
+            client.Send(obj, "RVMCoreUploader");
         }
     }
 }

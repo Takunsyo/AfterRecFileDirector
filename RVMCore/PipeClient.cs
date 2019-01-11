@@ -6,13 +6,24 @@ using Newtonsoft.Json;
 
 namespace RVMCore
 {
+    /// <summary>
+    /// A named pipe client object. for sending information to <see cref="NamedPipeServerStream"/> equipped process.
+    /// </summary>
+    /// <typeparam name="T">The Mid object type. This type must can be serialize to Json objects.</typeparam>
     public class PipeClient<T>
     {
+        /// <summary>
+        /// Send a Mid object typeof <typeparamref name="T"/> to a named pipe server.
+        /// </summary>
+        /// <param name="SendObj"></param>
+        /// <param name="PipeName"></param>
+        /// <param name="TimeOut"></param>
         public void Send(T SendObj, string PipeName, int TimeOut = 1000)
         {
             try
             {
-                NamedPipeClientStream pipeStream = new NamedPipeClientStream(".", PipeName, PipeDirection.Out, PipeOptions.Asynchronous);
+                NamedPipeClientStream pipeStream = new NamedPipeClientStream(".", PipeName,
+                    PipeDirection.Out, PipeOptions.Asynchronous);
 
                 // The connect function will indefinitely wait for the pipe to become available
                 // If that is not acceptable specify a maximum waiting time (in ms)
@@ -38,6 +49,7 @@ namespace RVMCore
 
                 // End the write
                 pipeStream.EndWrite(iar);
+                Debug.WriteLine("[Client] Pipe successfully send data.");
                 pipeStream.Flush();
                 pipeStream.Close();
                 pipeStream.Dispose();
@@ -46,6 +58,28 @@ namespace RVMCore
             {
                 Debug.WriteLine(oEX.Message);
             }
+        }
+
+        /// <summary>
+        /// Create mid object instance using a Json string. 
+        /// <para>*This method is for test purpose only.</para>
+        /// </summary>
+        [Obsolete("Do NOT use this in production.", false)]
+        public static T GetMidObjectFromString(string json)
+        {
+            if (!json.IsNullOrEmptyOrWhiltSpace())
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<T>(json);
+                }
+                catch
+                {
+                    return default;
+                }
+            }
+            else
+                return default;
         }
     }
 }

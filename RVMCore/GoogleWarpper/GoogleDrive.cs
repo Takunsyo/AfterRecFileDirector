@@ -14,6 +14,7 @@ using System.Net;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net.Http.Headers;
+using Newtonsoft.Json.Linq;
 
 namespace RVMCore.GoogleWarpper
 {
@@ -353,7 +354,7 @@ namespace RVMCore.GoogleWarpper
                 }
                 else
                 {
-                    parentID = tmp.First().Id;
+                    parentID = tmp.First(x=>x.Trashed != true).Id;
                 }
             }
             return this.GetGoogleFolderByID(parentID);
@@ -820,10 +821,69 @@ namespace RVMCore.GoogleWarpper
         /// </param>
         public File UpdateFile(string ID, in File body)
         {
-            var req = Service.Files.Update(body, ID);
+            var req = Service.Files.Update(body as File, ID);
             return req.Execute();
         }
 
+        /// <summary>
+        /// Update a file's name.
+        /// </summary>
+        /// <param name="ID">Google Drive file ID.</param>
+        /// <param name="newName">the new name of the file.</param>
+        /// <returns></returns>
+        public bool UpdateFile(string ID, string newName)
+        {
+            var RESTPath = $@"https://www.googleapis.com/drive/v3/files/{ID}";
+            var request = InitHttpWebRequest(RESTPath);
+            request.Method = "PATCH";
+            request.Accept = "application/json";
+            request.ContentType = "application/json";
+
+            var reqStr = "{\"name\": \"" + newName+ "\"}";
+            var reqBuffer = Encoding.UTF8.GetBytes(reqStr);
+            request.ContentLength = reqBuffer.Length;
+
+            using(var st = request.GetRequestStream())
+            {
+                st.Write(reqBuffer, 0, reqBuffer.Length);
+            }
+
+            var respond = request.GetResponse() as HttpWebResponse;
+            if(respond.StatusCode == HttpStatusCode.OK || respond.StatusCode == HttpStatusCode.Accepted)
+            {
+                //if (respond.ContentLength <= 0) return false;
+                using(var sr = respond.GetResponseStream())
+                {
+                    var result = new byte[0];
+                    while (true)
+                    {
+                        var buf = new byte[1024];
+                        if (sr.Read(buf, 0, 1024) > 0)
+                        {
+                            result = result.AppendArray(buf);
+                        }
+                        else
+                            break;
+                    }                  
+                    
+                    var respStr = Encoding.UTF8.GetString(result).Trim();
+                    var Json = JsonConvert.DeserializeObject(respStr) as JObject;
+                    if(Json.GetValue("name")?.ToObject<string>() == newName)
+                    {
+                        request.Abort();
+                        respond.Close();
+                        return true;
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine(respond.StatusDescription);
+            }
+            request.Abort();
+            respond.Close();
+            return false;
+        }
         /// <summary>
         /// Make a resumable Download request to the GoogleDrive.
         /// </summary>

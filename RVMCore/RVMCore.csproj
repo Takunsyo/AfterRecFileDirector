@@ -167,6 +167,7 @@
     <Compile Include="EPGStationWarpper\Api\EPGDefault.cs" />
     <Compile Include="EPGStationWarpper\Api\Program.cs" />
     <Compile Include="EPGStationWarpper\Helper.cs" />
+    <Compile Include="GoogleWarpper\GoogleDrive.cs" />
     <Compile Include="MasterView\Setting.xaml.cs">
       <DependentUpon>Setting.xaml</DependentUpon>
     </Compile>
@@ -185,14 +186,16 @@
       <DependentUpon>Uploader.xaml</DependentUpon>
     </Compile>
     <Compile Include="MasterView\ViewModel\CustomCommand.cs" />
+    <Compile Include="MasterView\ViewModel\DialogCloser.cs" />
     <Compile Include="MasterView\ViewModel\DriveTree.cs" />
+    <Compile Include="MasterView\ViewModel\ProgressInfo.cs" />
     <Compile Include="MasterView\ViewModel\SettingViewModel.cs" />
     <Compile Include="MasterView\ViewModel\UploaderViewModel.cs" />
     <Compile Include="MasterView\CloudViewer.xaml.cs">
       <DependentUpon>CloudViewer.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MasterView\ViewModel\UploadFile.cs" />
     <Compile Include="MasterView\ViewModel\ViewModelBase.cs" />
-    <Compile Include="GoogleWarpper\GoogleDrive.cs" />
     <Compile Include="GoogleWarpper\MetaInfo.cs" />
     <Compile Include="Logging.cs" />
     <Compile Include="MasterView\ViewModel\MasterViewControl.cs" />
