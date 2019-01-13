@@ -158,6 +158,7 @@ namespace RVMCore.MasterView
                 BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
                 this.Execute(() => this.FileList.Add(new UploadFile(e)));
                 BindingOperations.DisableCollectionSynchronization(this.FileList);
+                if (!this.IsWorking) this.Start_Click(null, null);
             }
             catch(Exception ex)
             {
@@ -218,7 +219,8 @@ namespace RVMCore.MasterView
         {
             if (mThread == null || !mThread.IsAlive) { mThread = new System.Threading.Thread(UploadWorkload); mThread.Start(); return; }
             if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Unstarted)) return;
-            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Suspended)|| this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.SuspendRequested))
+            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Suspended)||
+                this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.SuspendRequested))
             {
                 //mThread.Resume();
                 this.mUpObj.Resume();

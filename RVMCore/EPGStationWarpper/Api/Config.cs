@@ -1,6 +1,6 @@
 ﻿namespace RVMCore.EPGStationWarpper.Api
 {
-    class Config
+    public class Config
     {
         /// <summary>
         /// エンコードが有効か

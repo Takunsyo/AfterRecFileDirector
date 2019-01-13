@@ -71,12 +71,14 @@ namespace RVMCore.MasterView.ViewModel
         }
 
         private Thread mWork = null;
-        public bool Upload(GoogleWarpper.GoogleDrive googleDrive)
+        private CancellationTokenSource tokenSource;
+        public bool Upload(GoogleDrive googleDrive)
         {
             bool result = false;
-            var workLoad = new ThreadStart(() =>
+            tokenSource = new CancellationTokenSource();
+            var workLoad = new ThreadStart(async() =>
             {
-                result = googleDrive.UploadResumable(this.FullPath, this.RemotePath) != null;
+                result =await googleDrive.UploadResumableAsync(this.FullPath, this.RemotePath,tokenSource.Token) != null;
             });
             mWork = new Thread(workLoad);
             mWork.IsBackground = true;
@@ -97,7 +99,7 @@ namespace RVMCore.MasterView.ViewModel
         {
             if (!(mWork is null) && mWork.IsAlive)
             {
-                mWork.Abort();
+                this.tokenSource?.Cancel();
             }
         }
 

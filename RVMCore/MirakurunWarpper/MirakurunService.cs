@@ -75,8 +75,7 @@ namespace RVMCore.MirakurunWarpper
             if (setting.Mirakurun_ServiceAddr.IsNullOrEmptyOrWhiltSpace())
                 throw new ArgumentException("Invalid Setting: /n Setting doesn't include server address.");
             this.ServiceAddr = new Uri(setting.Mirakurun_ServiceAddr);
-            Exception e;
-            this.Version = this.GetServerVersion(out e);
+            this.Version = this.GetServerVersion(out var e);
             if (e != null) throw e;
         }
 
@@ -95,8 +94,7 @@ namespace RVMCore.MirakurunWarpper
             if (!Uri.IsWellFormedUriString(ServAddr, UriKind.RelativeOrAbsolute))
                 throw new InvalidOperationException("Uri string is invalid.");
             this.ServiceAddr = new Uri(ServAddr);
-            Exception e;
-            this.Version = this.GetServerVersion(out e);
+            this.Version = this.GetServerVersion(out var e);
             if (e != null) throw e;
         }
 
@@ -109,8 +107,7 @@ namespace RVMCore.MirakurunWarpper
         public MirakurunService(Uri ServAddr)
         {
             this.ServiceAddr = ServiceAddr;
-            Exception e;
-            this.Version = this.GetServerVersion(out e);
+            this.Version = this.GetServerVersion(out var e);
             if (e != null) throw e;
         }
         #endregion
@@ -1474,20 +1471,19 @@ namespace RVMCore.MirakurunWarpper
         /// <returns></returns>
         private ServerVersion GetServerVersion(out Exception e)
         {
-            e = null;
             Uri ub = new Uri(ServiceAddr, "/api/version");
             var req = InitWebRequest(ub);
-            HttpWebResponse rep = GettingResponse(ref req);
-            if (rep == null) {
-                e = new WebException("Unable to reach server.",WebExceptionStatus.SendFailure);
-                return null;
-            }
+            HttpWebResponse rep = GettingResponse(ref req,out e);
+            if (rep == null) return null;
             switch ((int)rep.StatusCode)
             {
                 case 200:
+                case 201:
                     var body = GetResponseBodyString(ref rep, Encoding.UTF8, true);
                     req.Abort();
                     return JsonConvert.DeserializeObject<ServerVersion>(body);
+                case int x when x > 300:
+                    return null;
                 default:
                     var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
                     var json = JsonConvert.DeserializeObject<@default>(mbody);

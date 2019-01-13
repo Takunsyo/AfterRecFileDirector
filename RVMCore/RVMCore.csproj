@@ -277,6 +277,7 @@
     <Compile Include="TelgeramBot\Apis\Objects\VideoNote.cs" />
     <Compile Include="TelgeramBot\Apis\Objects\Voice.cs" />
     <Compile Include="TelgeramBot\Bot.cs" />
+    <Compile Include="ThreadSaveTarget.cs" />
     <Compile Include="TVRockAFT.cs" />
   </ItemGroup>
   <ItemGroup>

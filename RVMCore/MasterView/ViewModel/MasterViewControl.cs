@@ -140,15 +140,19 @@ namespace RVMCore.MasterView
                     {
                         mMirakurun = new MirakurunWarpper.MirakurunService(setting);
                     }
-                    catch
+                    catch(Exception e)
                     {
                         if (MessageBox.Show("Mirakurun server address setting is not correct. " +
+                            $"\n {e.Message} \n"+
                             "\nPlease make sure Mirakurun is accessible directly from this operating PC." +
                             "\n\nDo you want to open setting dialog now?", "Setting Error", MessageBoxButton.YesNo, MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
                         {
                             var dialog = new Setting();
-                            dialog.ShowDialog();
-                            InitService();
+                            if(dialog.ShowDialog()?? false)
+                            {
+                                setting = SettingObj.Read();
+                                InitService();
+                            }
                         }
                     }
                 }
@@ -243,15 +247,19 @@ namespace RVMCore.MasterView
                 {
                     mEPGAccess = new EPGStationWarpper.EPGAccess(setting);
                 }
-                catch
+                catch(Exception e)
                 {
                     if(MessageBox.Show("EPGStation server address setting is not correct. " +
+                        $"\n {e.Message} \n" +
                         "\nPlease make sure EPGStation is accessible directly from this operating PC." +
                         "\n\nDo you want to open setting dialog now?","Setting Error",MessageBoxButton.YesNo,MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
                     {
                         var dialog = new Setting();
-                        dialog.ShowDialog();
-                        InitService();
+                        if (dialog.ShowDialog() ?? false)
+                        {
+                            setting = SettingObj.Read();
+                            InitService();
+                        }
                     }
                 }
             }

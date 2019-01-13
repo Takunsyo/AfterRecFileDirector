@@ -22,18 +22,29 @@ namespace RVMCore.EPGStationWarpper
 
         public EPGAccess(SettingObj setting)
         {
+            if(setting.EPG_ServiceAddr.IsNullOrEmptyOrWhiltSpace()||
+                setting.EPG_UserName.IsNullOrEmptyOrWhiltSpace()||
+                setting.EPG_Passwd.IsNullOrEmptyOrWhiltSpace()||
+                setting.EPG_BaseFolder.IsNullOrEmptyOrWhiltSpace())
+            {
+                throw new NullReferenceException("Part of EPGStation's setting is null!");
+            }
             EPGCredential = new NetworkCredential(setting.EPG_UserName, setting.EPG_Passwd);
-            ServiceAddr = setting.EPG_ServiceAddr;
+            ServiceAddr = setting.EPG_UseSSL?@"https://"+ setting.EPG_ServiceAddr: @"http://" + setting.EPG_ServiceAddr;
             BaseFolder = System.IO.Path.Combine(setting.StorageFolder, setting.EPG_BaseFolder);
+            var config = GetConfig(out var e);
+            if (config is null) throw e;
         }
 
-        public EPGAccess(string uname, string passwd, string servAddr, string bFolder)
+        public EPGAccess(string uname, string passwd, string servAddr, string bFolder, bool UseSSL)
         {
             EPGCredential = new NetworkCredential(uname, passwd);
-            ServiceAddr = servAddr;
+            ServiceAddr =UseSSL? @"https://"+ servAddr: @"http://" + servAddr;
             BaseFolder = bFolder;
+            var config = GetConfig(out var e);
+            if (config is null) throw e;
         }
-
+        
         #region private methods 
 
         private enum RequestMethods
@@ -109,7 +120,7 @@ namespace RVMCore.EPGStationWarpper
             }
             catch (WebException ex)
             {
-                e = null;
+                e = ex;
                 return (HttpWebResponse)ex.Response;
             }
             catch (Exception ex)
@@ -134,7 +145,7 @@ namespace RVMCore.EPGStationWarpper
             }
             catch (WebException ex)
             {
-                e = null;
+                e = ex;
                 return (HttpWebResponse)ex.Response;
             }
             catch (Exception ex)
@@ -179,8 +190,7 @@ namespace RVMCore.EPGStationWarpper
         public Program GetRecordProgramByID(int id)
         {
             if (id <= 0) return null;
-            string EPGATTR = "http://{1}/api/recorded/{0}";
-            var ub = new UriBuilder(string.Format(EPGATTR, id.ToString(), this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/recorded/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             //if (networkID != null) query["networkId"] = networkID.ToString();
             //if (serviceID != null) query["serviceId"] = serviceID.ToString();
@@ -246,8 +256,7 @@ namespace RVMCore.EPGStationWarpper
             long? channel_id = null, string keyword = null, int limit = 24, int offset = 0, 
             bool reverse = false)
         {
-            string EPGATTR = "http://{0}/api/recorded";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/recorded");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -286,8 +295,7 @@ namespace RVMCore.EPGStationWarpper
         {
             length = 0;
             if (id <= 0) return null;
-            string EPGATTR = "http://{1}/api/recorded/{0}/thumbnail";
-            var req = InitWebRequest(string.Format(EPGATTR, id.ToString(), this.ServiceAddr));
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/recorded/{id.ToString()}/thumbnail");
             req.Accept = "image/jpg";
             var resp = GettingResponse(ref req);
             if (resp == null) return null;
@@ -325,8 +333,7 @@ namespace RVMCore.EPGStationWarpper
         public byte[] GetRecordedThumbnailBytesByID(long id)
         {
             if (id <= 0) return null;
-            string EPGATTR = "http://{1}/api/recorded/{0}/thumbnail";
-            var req = InitWebRequest(string.Format(EPGATTR, id.ToString(), this.ServiceAddr));
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/recorded/{id.ToString()}/thumbnail");
             req.Accept = "image/jpg";
             var resp = GettingResponse(ref req);
             if (resp == null) return null;
@@ -369,8 +376,7 @@ namespace RVMCore.EPGStationWarpper
         public bool DeleteRecordByID(long id)
         {
             if (id <= 0) return false;
-            string EPGATTR = "http://{1}/api/recorded/{0}";
-            var req = InitWebRequest(string.Format(EPGATTR, id.ToString(), this.ServiceAddr),RequestMethods.DELETE);
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/recorded/{id.ToString()}", RequestMethods.DELETE);
             HttpWebResponse resp = GettingResponse(ref req);
             if (resp == null) return false;
             switch (resp.StatusCode)
@@ -408,8 +414,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<EPGchannel> GetChannels()
         {
-            string EPGATTR = "http://{0}/api/channels";
-            var req = InitWebRequest(string.Format(EPGATTR, this.ServiceAddr));
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/channels");
             var resp = GettingResponse(ref req);
             if (resp == null) return null;
             switch ((int)resp.StatusCode)
@@ -444,8 +449,7 @@ namespace RVMCore.EPGStationWarpper
         public Image GetChannelLogoByID(long cid, out int length)
         {
             length = 0;
-            string EPGATTR = "http://{0}/api/channels/{1}/logo";
-            var req = InitWebRequest(string.Format(EPGATTR, this.ServiceAddr,cid.ToString()));
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/channels/{cid.ToString()}/logo");
             req.Accept = "image/png";
             var resp = GettingResponse(ref req);
             if (resp == null) return null;
@@ -483,8 +487,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public byte[] GetChannelLogoBytesByID(long cid)
         {
-            string EPGATTR = "http://{0}/api/channels/{1}/logo";
-            var req = InitWebRequest(string.Format(EPGATTR, this.ServiceAddr, cid.ToString()));
+            var req = InitWebRequest($@"{this.ServiceAddr}/api/channels/{cid.ToString()}/logo");
             req.Accept = "image/png";
             HttpWebResponse resp = GettingResponse(ref req);
             if (resp == null) return null;
@@ -535,8 +538,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetReserves(out int count, int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -570,8 +572,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetReserves(int offset = 0,int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -619,8 +620,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public Reserve GetReserveByID(long id)
         {
-            string EPGATTR = "http://{0}/api/reserves/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr,id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString());
             HttpWebResponse rep = GettingResponse(ref req);
@@ -649,8 +649,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="program"></param>
         public bool AddReserve(AddReserve program)
         {
-            string EPGATTR = "http://{0}/api/reserves";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.POST);
             var jstr = JsonConvert.SerializeObject(program);
@@ -681,8 +680,7 @@ namespace RVMCore.EPGStationWarpper
         /// </summary>
         public bool DeleteReserveByID(long id)
         {
-            string EPGATTR = "http://{0}/api/reserves/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder( $@"{this.ServiceAddr}/api/reserves/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(),RequestMethods.DELETE);
             HttpWebResponse rep = GettingResponse(ref req);
@@ -707,8 +705,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="editReserve">the reserve edit body object.</param>
         public bool EditReserveByID(long id,EditReserve editReserve)
         {
-            string EPGATTR = "http://{0}/api/reserves/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(),RequestMethods.PUT);
             var jstr = JsonConvert.SerializeObject(editReserve);
@@ -746,8 +743,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetSkipedReserves(out int count, int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/skips";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/skips");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -781,8 +777,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetSkipedReserves(int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/skips";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/skips");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -829,8 +824,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="id"></param>
         public bool UndoSkipedReserve(long id)
         {
-            string EPGATTR = "http://{0}/api/reserves/{1}/skip";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/{id.ToString()}/skip");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.DELETE);
             HttpWebResponse rep = GettingResponse(ref req);
@@ -857,8 +851,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetOverlapedReserves(out int count, int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/overlaps";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/overlaps");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -892,8 +885,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetOverlapedReserves(int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/overlaps";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/overlaps");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -941,8 +933,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="id"></param>
         public bool UndoOverlapedReserve(long id)
         {
-            string EPGATTR = "http://{0}/api/reserves/{1}/overlap";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/{id.ToString()}/overlap");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.DELETE);
             HttpWebResponse rep = GettingResponse(ref req);
@@ -969,8 +960,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetReserveConflicts(out int count, int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/conflicts";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/conflicts");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -1004,8 +994,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public IEnumerable<Reserve> GetReserveConflicts(int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/reserves/conflicts";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/conflicts");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -1051,8 +1040,7 @@ namespace RVMCore.EPGStationWarpper
         /// </summary>
         public ReserveAllId GetAllReserveIDs()
         {
-            string EPGATTR = "http://{0}/api/reserves/all";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/reserves/all");
             var req = InitWebRequest(ub.ToString());
             HttpWebResponse rep = GettingResponse(ref req);
             if (rep == null) return null;
@@ -1079,8 +1067,7 @@ namespace RVMCore.EPGStationWarpper
         /// </summary>
         public IEnumerable<RuleList> GetRuleList()
         {
-            string EPGATTR = "http://{0}/api/rules/list";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/list");
             var req = InitWebRequest(ub.ToString());
             HttpWebResponse rep = GettingResponse(ref req);
             if (rep == null) return null;
@@ -1107,8 +1094,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="limit">max item of this action.</param>
         public IEnumerable<Rule> GetRules(out int count,int offset =0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/rules";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -1141,8 +1127,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="limit">max item of this action.</param>
         public IEnumerable<Rule> GetRules(int offset = 0, int limit = 24)
         {
-            string EPGATTR = "http://{0}/api/rules";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules");
             var query = HttpUtility.ParseQueryString(ub.Query);
             query["limit"] = limit.ToString();
             query["offset"] = offset.ToString();
@@ -1189,8 +1174,7 @@ namespace RVMCore.EPGStationWarpper
         /// <param name="rule"></param>
         public int AddRule(AddRule rule)
         {
-            string EPGATTR = "http://{0}/api/rules";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.POST);
             var jstr = JsonConvert.SerializeObject(rule);
@@ -1220,8 +1204,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public bool EnableRule(int id)
         {
-            string EPGATTR = "http://{0}/api/rules/{1}/enable";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr,id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/{id.ToString()}/enable");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.PUT);
             HttpWebResponse rep = GettingResponse(ref req);
@@ -1252,8 +1235,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public bool DisableRule(int id)
         {
-            string EPGATTR = "http://{0}/api/rules/{1}/disable";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/{id.ToString()}/disable");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.PUT);
             HttpWebResponse rep = GettingResponse(ref req);
@@ -1284,8 +1266,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public Rule GetRuleByID(int id)
         {
-            string EPGATTR = "http://{0}/api/rules/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString());
             HttpWebResponse rep = GettingResponse(ref req);
@@ -1317,8 +1298,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public bool EditRuleByID(int id,AddRule rule)
         {
-            string EPGATTR = "http://{0}/api/rules/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(),RequestMethods.PUT);
             var jstr = JsonConvert.SerializeObject(rule);
@@ -1350,8 +1330,7 @@ namespace RVMCore.EPGStationWarpper
         /// <returns></returns>
         public bool DeleteRuleByID(int id)
         {
-            string EPGATTR = "http://{0}/api/rules/{1}";
-            var ub = new UriBuilder(string.Format(EPGATTR, this.ServiceAddr, id.ToString()));
+            var ub = new UriBuilder($@"{this.ServiceAddr}/api/rules/{id.ToString()}");
             var query = HttpUtility.ParseQueryString(ub.Query);
             var req = InitWebRequest(ub.ToString(), RequestMethods.DELETE);
             var rep = GettingResponse(ref req);
@@ -1372,6 +1351,39 @@ namespace RVMCore.EPGStationWarpper
         }
         #endregion
 
+        #region "API Config"
 
+        public Config GetConfig(out Exception exception)
+        {
+            try
+            {
+                var ub = new UriBuilder($@"{this.ServiceAddr}/api/config");
+                var req = InitWebRequest(ub.ToString());
+                var rep = GettingResponse(ref req, out exception);
+                if (rep == null) return null;
+                switch ((int)rep.StatusCode)
+                {
+                    case 200:
+                    case 201:
+                        var resultStr = GetResponseBody(ref rep, Encoding.UTF8, true);
+                        req.Abort();
+                        return JsonConvert.DeserializeObject<Config>(resultStr);
+                    case int x when x > 300:
+                        return null;
+                    default:
+                        var err = GetResponseBody(ref rep, Encoding.UTF8, true);
+                        var json = JsonConvert.DeserializeObject<EPGDefault>(err);
+                        "Failed to add reserve! [{0}] reason: {1}".ErrorLognConsole(json.code, json.message);
+                        req.Abort();
+                        return null;
+                }
+            }
+            catch(Exception e)
+            {
+                exception = e;
+                return null;
+            }
+        }
+        #endregion
     }
 }

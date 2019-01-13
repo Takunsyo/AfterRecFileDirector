@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Input;
 
 namespace RVMCore.MasterView
@@ -12,7 +13,7 @@ namespace RVMCore.MasterView
             data = SettingObj.Read();
         }
 
-        public DialogResult DialogResult
+        public bool? DialogResult
         {
             get; private set;
         }
@@ -42,7 +43,7 @@ namespace RVMCore.MasterView
                             withBlock.Title = "Select record root Folder.";
                             withBlock.FileName = "Select Folder";
                         }
-                        if (dialog.ShowDialog() == DialogResult.OK)
+                        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                         {
                             string mPath = dialog.FileName;
                             RootFolder = mPath.EndsWith("Select Folder") ? mPath.Remove(mPath.Length - 13, 13) : mPath;
@@ -56,6 +57,12 @@ namespace RVMCore.MasterView
         {
             get => data.AllowBeep;
             set => data.AllowBeep = value;
+        }
+        
+        public bool AutoUpload
+        {
+            get => data.StartUploadWhenDataAvailable;
+            set => data.StartUploadWhenDataAvailable = value;
         }
 
         public bool AllowRecordOnRoot
@@ -145,7 +152,11 @@ namespace RVMCore.MasterView
             get => data.EPG_BaseFolder;
             set => data.EPG_BaseFolder = value;
         }
-
+        public bool UseSSL
+        {
+            get => data.EPG_UseSSL;
+            set => data.EPG_UseSSL = value;
+        }
         public string MirakurunServerAddr
         {
             get => data.Mirakurun_ServiceAddr;
@@ -155,12 +166,20 @@ namespace RVMCore.MasterView
         public ICommand SaveObj => new CustomCommand(()=>
         {
             this.data.Save();
-            this.DialogResult = DialogResult.OK;
+            this.DialogResult = true;
         });
         
 
         public ICommand ResetObj => new CustomCommand(() => 
             { data = SettingObj.Read(); });
 
+        public ICommand Cancel => new CustomCommand(() => {
+            if (System.Windows.MessageBox.Show("Are you ready to cancel?", "Cancel?", 
+                MessageBoxButton.OKCancel) == MessageBoxResult.OK)
+            {
+                this.DialogResult = false;
+            }
+            }
+        );
     }
 }

@@ -7,6 +7,7 @@
         xmlns:xc ="clr-namespace:RVMCore.MasterView.ViewModel"
         mc:Ignorable="d"
         xc:DialogCloser.DialogResult="{Binding DialogResult,Mode=OneWay}"
+        
         Title="Setting" Height="655.49" Width="389.017" WindowStyle="ToolWindow" ResizeMode="NoResize">
     <StackPanel Margin="5" >
         <TextBlock Text="Root Operation Directry"/>
@@ -22,11 +23,13 @@
         <TextBlock Text="Application Behaver"/>
         <Grid Margin="5,5">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="25*"/>
                 <ColumnDefinition Width="50*"/>
-                <ColumnDefinition Width="50*"/>
+                <ColumnDefinition Width="25*"/>
             </Grid.ColumnDefinitions>
-            <CheckBox Content="Allow beep after recoding" Grid.Column="0" IsChecked="{Binding AllowBeep,Mode=TwoWay}"/>
+            <CheckBox Content="Allow beep" Grid.Column="0" IsChecked="{Binding AllowBeep,Mode=TwoWay}"/>
             <CheckBox Content="Allow record to root folder" Grid.Column="1" IsChecked="{Binding AllowRecordOnRoot,Mode=TwoWay}"/>
+            <CheckBox Content="Auto Upload" Grid.Column="2" IsChecked="{Binding AutoUpload,Mode=TwoWay}"/>
         </Grid>
 
         <TextBlock Text="Recorded file Genre Folder names. *Leave null to record to root."/>
@@ -94,6 +97,7 @@
                 <TextBox Grid.Row="0" Grid.Column="1" Margin="5,0" Text="{Binding EPGServerAddr,Mode=TwoWay}"/>
                 <TextBlock Text="Server Credential" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,5">
+                    <CheckBox Content="UseSSL" IsChecked="{Binding UseSSL,Mode=TwoWay}" HorizontalAlignment="Right"/>
                     <TextBlock Text="Username:"/>
                     <TextBox Margin="5,0,0,0" Text="{Binding EPGUsername,Mode=TwoWay}"/>
                     <TextBlock Text="Password:"/>
@@ -121,7 +125,7 @@
             </Grid.ColumnDefinitions>
             <Button Content="Save" Grid.Column="0" Command="{Binding SaveObj}"/>
             <Button Content="Reset" Grid.Column="2" Margin="3,0" Command="{Binding ResetObj}"/>
-            <Button Content="Cancel" Grid.Column="3" Margin="3,0" Click="Button_Click"/>
+            <Button Content="Cancel" Grid.Column="3" Margin="3,0" Command="{Binding Cancel}"/>
         </Grid>
     </StackPanel>
 </Window>
