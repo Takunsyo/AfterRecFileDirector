@@ -25,6 +25,8 @@ namespace RVMCore
         /// </summary>
         public bool ProcessAnyway { get; set; } = false;
 
+        public string ID { get; set; } = null;
+
         public RmtFile(string path,bool isUpdate,string oldFather,bool processNow)
         {
             this.FullFilePath = path;

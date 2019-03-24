@@ -69,6 +69,18 @@ namespace RVMCore
         public string Mirakurun_ServiceAddr = "http://localhost:40772/";
         [DataMember]
         public bool StartUploadWhenDataAvailable { get; set; } = false;
+
+        [DataMember]
+        public string DataBase { get; set; } = null; /* TODO Make this an enum */
+        [DataMember]
+        public string DataBase_Addr { get; set; } = null;
+        [DataMember]
+        public int? DataBase_Port { get; set; } = null;
+        [DataMember]
+        public string DataBase_User { get; set; } = null;
+        [DataMember]
+        public string DataBase_Pw { get; set; } = null;
+
         public string GetFolderTag(ProgramGenre ge)
         {
             string myResult = string.Empty;

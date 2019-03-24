@@ -37,6 +37,8 @@ namespace RVMCore.MasterView
 
         public void Show() => mView?.Show();
 
+        public void Focus() => mView?.Focus();
+
         private void LogsFailedCallback(object sender)
         {
             var serv = (MirakurunService)sender;

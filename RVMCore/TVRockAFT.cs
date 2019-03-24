@@ -53,6 +53,18 @@ namespace RVMCore
                 ElementHost.EnableModelessKeyboardInterop(wpfwindow);
                 if (wpfwindow.ShowDialog() == true) return true;
             }
+            if (margs.Any(x => x.Equals("-setup", StringComparison.OrdinalIgnoreCase)))
+            {
+                var wpfwindow = new MasterView.Setting();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
+            }
+            if (margs.Any(x => x.Equals("-rcdbview", StringComparison.OrdinalIgnoreCase)))
+            {
+                var wpfwindow = new MasterView.RecordedListView();
+                ElementHost.EnableModelessKeyboardInterop(wpfwindow);
+                if (wpfwindow.ShowDialog() == true) return true;
+            }
             if (margs.Any(x => x.Equals("-cloud", StringComparison.OrdinalIgnoreCase)))
             {
                 var wpfwindow = new MasterView.CloudViewer();
@@ -372,7 +384,7 @@ namespace RVMCore
                     if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
                 //comit upload
-                Upload(mFile);
+                AddToDatabase(mFile,mySetting,para.StartTime);
                 OKBeep(mySetting); // beep
             }
             else
@@ -390,7 +402,7 @@ namespace RVMCore
                     if (tmp) epgAccess.DeleteRecordByID(para.EPGStation.Meta.id);
                 }
                 //Do upload same here..
-                Upload(mFile);
+                AddToDatabase(mFile, mySetting, para.StartTime);
                 OKBeep(mySetting);
             }
             return true;
@@ -435,10 +447,44 @@ namespace RVMCore
             Upload(file, counter);
         }
 
+        private static void AddToDatabase(RmtFile file, SettingObj setting,DateTime startTime)
+        {
+            try
+            {
+                if (!setting.DataBase.Equals("mysql", StringComparison.InvariantCultureIgnoreCase))
+                    throw new InvalidOperationException("Database is wrone or not in use.");
+                using (var database = new Database(setting.DataBase_Addr, setting.DataBase_User, setting.DataBase_Pw))
+                {
+                    database.AddDataItem(file.FullFilePath.Substring(file.FullFilePath.IndexOf('\\') + 1),
+                        new System.IO.FileInfo(file.FullFilePath).Name,
+                        MirakurunWarpper.MirakurunService.GetUNIXTimeStamp(startTime),
+                        file.IsFatherUpdate ? file.OldFatherName : null);
+                }
+            }
+            catch(Exception ex)
+            {
+                ex.Message.ErrorLognConsole();
+                Upload(file);
+            }
+        }
+
+
         public static void TestMethod()
         {
-            var path = @"E:\AfterRecFileDirector.exe -upload";
-            ProcessExtensions.StartProcessAsCurrentUser(path, out var pid);
+            //var path = @"E:\AfterRecFileDirector.exe -upload";
+            //ProcessExtensions.StartProcessAsCurrentUser(path, out var pid);
+            RVMCore.GoogleWarpper.GoogleDrive googleDrive = new RVMCore.GoogleWarpper.GoogleDrive();
+            string uri = "";
+            string path = @"D:\迅雷下载\1.Bank\Learning\新求精德语初级1_mp3.rar";
+            string getUri(bool force)
+            {
+                if (string.IsNullOrWhiteSpace(uri) || force)
+                {
+                    uri = googleDrive.GenerateUploadID(path, @"\");
+                }
+                return uri;
+            }
+            googleDrive.UploadResumableAsync(path, getUri);
         }
 
         private static bool FileMovier(string old , string tar)

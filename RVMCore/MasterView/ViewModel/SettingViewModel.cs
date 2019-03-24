@@ -3,7 +3,7 @@ using System.Windows.Forms;
 using System.Windows.Input;
 
 namespace RVMCore.MasterView
-{ 
+{
     public class SettingViewModel : ViewModelBase
     {
         private SettingObj data { get; set; }
@@ -31,7 +31,7 @@ namespace RVMCore.MasterView
         {
             get
             {
-                return new CustomCommand(() => {
+                return new CustomCommand((x) => {
                     using (OpenFileDialog dialog = new OpenFileDialog())
                     {
                         {
@@ -58,7 +58,7 @@ namespace RVMCore.MasterView
             get => data.AllowBeep;
             set => data.AllowBeep = value;
         }
-        
+
         public bool AutoUpload
         {
             get => data.StartUploadWhenDataAvailable;
@@ -67,7 +67,7 @@ namespace RVMCore.MasterView
 
         public bool AllowRecordOnRoot
         {
-            get=> data.AllowStoreOnBaseFolderIfTagIsNull;
+            get => data.AllowStoreOnBaseFolderIfTagIsNull;
             set => data.AllowStoreOnBaseFolderIfTagIsNull = value;
         }
 
@@ -163,21 +163,66 @@ namespace RVMCore.MasterView
             set => data.Mirakurun_ServiceAddr = value; //Need to verify data.
         }
 
-        public ICommand SaveObj => new CustomCommand(()=>
+        public bool UseDatabase
+        {
+            get
+            {
+                return this.data.DataBase?.Equals("mysql", System.StringComparison.InvariantCultureIgnoreCase) ?? false;
+            }
+            set
+            {
+                if (value)
+                {
+                    data.DataBase = "mysql";
+                }
+                else
+                {
+                    data.DataBase = null;
+                }
+            }
+        }
+
+        public int? DatabasePort
+        {
+            get => data.DataBase_Port ?? 3306;
+            set => data.DataBase_Port = (value == 3306 ? null : value);
+        }
+
+        public string DatabaseAddr
+        {
+            get => data.DataBase_Addr;
+            set => data.DataBase_Addr = value;
+        }
+
+        public string DatabaseUser
+        {
+            get => data.DataBase_User;
+            set => data.DataBase_User = value;
+        }
+
+        public string DatabasePW
+        {
+            get => data.DataBase_Pw;
+            set => data.DataBase_Pw = value;
+        }
+        //        xc:DialogCloser.DialogResult="{Binding DialogResult,Mode=OneWay}"
+        public ICommand SaveObj => new CustomCommand((x) =>
         {
             this.data.Save();
-            this.DialogResult = true;
+            var window = x as Window;
+            window.DialogResult = true;
         });
         
 
-        public ICommand ResetObj => new CustomCommand(() => 
+        public ICommand ResetObj => new CustomCommand((x) => 
             { data = SettingObj.Read(); });
 
-        public ICommand Cancel => new CustomCommand(() => {
+        public ICommand Cancel => new CustomCommand((x) => {
             if (System.Windows.MessageBox.Show("Are you ready to cancel?", "Cancel?", 
                 MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                this.DialogResult = false;
+                var window = x as Window;
+                window.DialogResult = false;
             }
             }
         );

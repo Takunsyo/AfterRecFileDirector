@@ -8,15 +8,15 @@ namespace RVMCore.MasterView
     /// </summary>
     public class CustomCommand : ICommand
     {
-        private Action Command;
+        private Action<object> Command;
         private bool canExecute { get; set; } = true;
 
-        public CustomCommand(Action command)
+        public CustomCommand(Action<object> command)
         {
             this.Command = command;
         }
 
-        public CustomCommand(Action command, bool _canExecute)
+        public CustomCommand(Action<object> command, bool _canExecute)
         {
             this.Command = command;
             this.canExecute = _canExecute;
@@ -28,7 +28,7 @@ namespace RVMCore.MasterView
 
         public void Execute(object parameter)
         {
-            Command();
+            Command.DynamicInvoke(parameter);
         }
 
         public void SetCanExecute(bool value)

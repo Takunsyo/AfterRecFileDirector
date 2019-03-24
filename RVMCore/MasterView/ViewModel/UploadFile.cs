@@ -19,26 +19,65 @@ namespace RVMCore.MasterView.ViewModel
         }
         public string FileName => System.IO.Path.GetFileName(this.FullPath);
         public string FullPath { get; }
-        public bool IsUploading => System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.FullPath));
 
+        public bool IsUploading => CheckUploading();
+        public string Name { get; set; } = null;
+        public string ID { get; set; } = null;
         public bool IsChangeFather { get; } = false;
         public string OldFatherPath { get; } = null;
         public bool GoForUpload { get; private set; } = true;
         public bool IsOver { get; set; }
         public string RemotePath => System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
 
+        private Database mDatabase = null;
         public string Size => getSizeString((ulong)Length);
+
+        private bool CheckUploading()
+        {
+            if(this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
+            {
+                return System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.FullPath));
+            }
+            else
+            {
+                return this.mDatabase.GetFileUploadStatus(this.ID, out var uid) ?? (uid?.IsNullOrEmptyOrWhiltSpace() ??true ? false: true);
+            }
+        }
 
         public long Length { get; private set; }
         public UploadFile(string filePath)
         {
             FullPath = filePath;
             IsOver = false;
+            if (!System.IO.File.Exists(filePath))
+                throw new ArgumentException($"File doesn't exists : [{filePath}]");
             var fileinfo = new System.IO.FileInfo(filePath);
             this.Length = fileinfo.Length;
         }
+
+        public UploadFile(RmtFile file, Database database)
+        {
+            if (file is null || file.FullFilePath.IsNullOrEmptyOrWhiltSpace())
+                throw new ArgumentException("Argument 'file' is null, or it doesn't contain any usable path.");
+            if (!System.IO.File.Exists(file.FullFilePath))
+                throw new ArgumentException($"File doesn't exists : [{file.FullFilePath}]");
+            FullPath = file.FullFilePath;
+            this.IsChangeFather = file.IsFatherUpdate;
+            this.OldFatherPath = file.OldFatherName;
+            this.GoForUpload = file.ProcessAnyway;
+            IsOver = false;
+            var fileinfo = new System.IO.FileInfo(file.FullFilePath);
+            this.Length = fileinfo.Length;
+            this.ID = file.ID;
+            this.mDatabase = database;
+        }
+
         public UploadFile(RmtFile file)
         {
+            if (file is null || file.FullFilePath.IsNullOrEmptyOrWhiltSpace())
+                throw new ArgumentException("Argument 'file' is null, or it doesn't contain any usable path.");
+            if (!System.IO.File.Exists(file.FullFilePath))
+                throw new ArgumentException($"File doesn't exists : [{file.FullFilePath}]");
             FullPath = file.FullFilePath;
             this.IsChangeFather = file.IsFatherUpdate;
             this.OldFatherPath = file.OldFatherName;
@@ -54,6 +93,7 @@ namespace RVMCore.MasterView.ViewModel
             var fileinfo = new System.IO.FileInfo(this.FullPath);
             this.Length = fileinfo.Length;
         }
+
         public void UpdateData()
         {
             this.NotifyPropertyChanged("ShowName");
@@ -72,13 +112,47 @@ namespace RVMCore.MasterView.ViewModel
 
         private Thread mWork = null;
         private CancellationTokenSource tokenSource;
+        private ManualResetEvent manualReset;
+        private bool IsPaused { get; set; }
         public bool Upload(GoogleDrive googleDrive)
         {
             bool result = false;
             tokenSource = new CancellationTokenSource();
+            manualReset = new ManualResetEvent(true);
+            IsPaused = false;
             var workLoad = new ThreadStart(async() =>
             {
-                result =await googleDrive.UploadResumableAsync(this.FullPath, this.RemotePath,tokenSource.Token) != null;
+                try
+                {
+                    if(this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
+                        result = await googleDrive.UploadResumableAsync(this.FullPath, this.RemotePath, tokenSource.Token, this.manualReset) != null;
+                    else
+                    {
+                        string uri = this.mDatabase.GetFileUploadID(this.ID);
+                        string getID(bool force)
+                        {
+                            if (string.IsNullOrWhiteSpace(uri) || force)
+                            {
+                                uri = googleDrive.GenerateUploadID(this.FullPath, this.RemotePath);
+                                this.mDatabase.SetUploadStatus(this.ID, uri);
+                            }
+                            return uri;
+                        }
+                        var id = await googleDrive.UploadResumableAsync(this.FullPath, getID, tokenSource.Token, this.manualReset);
+                        if (!id.IsNullOrEmptyOrWhiltSpace())
+                        {
+                            this.mDatabase.SetUploadStatus(this.ID, id, true);
+                            result = true;
+                        }
+                        else
+                            result = false;
+                    } 
+                }
+                catch(Exception ex)
+                {
+                    ex.Message.ErrorLognConsole();
+                    return;
+                }
             });
             mWork = new Thread(workLoad);
             mWork.IsBackground = true;
@@ -97,17 +171,27 @@ namespace RVMCore.MasterView.ViewModel
 
         public void Abort()
         {
-            if (!(mWork is null) && mWork.IsAlive)
+            if (mWork?.IsAlive ?? false)
             {
+                if (this.IsPaused)
+                {
+                    this.Resume(); //If paused make it alive again to cancel it.
+                }
                 this.tokenSource?.Cancel();
+                mWork?.Join(2500);
+                if (mWork?.IsAlive ?? false)
+                {
+                    mWork?.Abort();
+                }
             }
         }
 
         public void Pause()
         {
-            if (!(mWork is null) && mWork.IsAlive)
+            if (mWork?.IsAlive ?? false)
             {
-                mWork.Suspend();
+                this.manualReset.Reset();
+                this.IsPaused = true;
             }
         }
 
@@ -115,7 +199,8 @@ namespace RVMCore.MasterView.ViewModel
         {
             if (!(mWork is null) && mWork.IsAlive)
             {
-                mWork.Resume();
+                this.manualReset.Set();
+                this.IsPaused = false;  
             }
         }
 
@@ -123,8 +208,9 @@ namespace RVMCore.MasterView.ViewModel
         {
             get
             {
-                if (mWork is null) return System.Threading.ThreadState.Unstarted;
-                return mWork.ThreadState;
+                if (mWork is null) return ThreadState.Unstarted;
+                if (this.IsPaused) return ThreadState.Suspended;
+                else return mWork.ThreadState;
             }
         }
 
@@ -140,6 +226,7 @@ namespace RVMCore.MasterView.ViewModel
         }
         public static implicit operator UploadFile(RmtFile input)
         {
+            if (input is null) return null;
             return new UploadFile(input);
         }
 

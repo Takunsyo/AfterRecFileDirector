@@ -34,11 +34,11 @@ namespace RVMCore.MasterView
                 _IsWorking = value;
                 if (value)
                 {
-                    TaskBarIcon.Icon = Properties.Resources.NotifyTrayWorking;
+                    //TaskBarIcon.Icon = Properties.Resources.NotifyTrayWorking;
                 }
                 else
                 {
-                    TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
+                    //TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
                 }
             }
         }
@@ -66,7 +66,7 @@ namespace RVMCore.MasterView
             setting = SettingObj.Read();
             this.DataContext = this;
             this.TaskBarIcon.DataContext = this;
-            TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
+            //TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
             InitializeMirakurun();
             InitializeEPGStation();
             this.Uploader = new UploaderViewModel();
@@ -74,39 +74,64 @@ namespace RVMCore.MasterView
 
         public ICommand OpenUploader
         {
-            get=>new CustomCommand(() => {
+            get=>new CustomCommand((x) => {
                 if (!(uploaderForm?.IsLoaded ?? false))
+                {
                     uploaderForm = new Uploader(this.Uploader, false);
-                uploaderForm.Show();
+                    uploaderForm.Show();
+                }
+                else 
+                    uploaderForm.Focus();
             });
         }
 
-        public ICommand OpenLogs => new CustomCommand(() =>
+        public ICommand OpenLogs => new CustomCommand((x) =>
         {
             if (!(mirakurunLog?.IsLoaded ?? false))
+            {
                 mirakurunLog = new MirakurunLogViewModel(this.mMirakurun);
-            mirakurunLog.Show();
+                mirakurunLog.Show();
+            }
+            else
+                mirakurunLog.Focus();
         });
 
-        public ICommand OpenTV => new CustomCommand(() =>
+        public ICommand OpenTV => new CustomCommand((x) =>
         {
             if (!(tvViewer?.IsLoaded ?? false))
+            {
                 tvViewer = new MirakurunWarpper.MirakurunViewer(this.mMirakurun);
-            tvViewer.Show();
+                tvViewer.Show();
+            }
+            else
+                tvViewer.Focus();
         });
 
-        private Setting mSetForm;
-        public ICommand OpenSetting => new CustomCommand(() => {
-            if (!(mSetForm?.IsLoaded ?? false))
-                mSetForm = new Setting();
-            mSetForm.Show();
+        public ICommand OpenSetting => new CustomCommand((x) => {
+            Setting mSetForm = new Setting();
+            mSetForm.ShowDialog();
         });
 
         private CloudViewer mCloud;
-        public ICommand OpenCloud => new CustomCommand(() => {
+        public ICommand OpenCloud => new CustomCommand((x) => {
             if (!(mCloud?.IsLoaded ?? false))
+            {
                 mCloud = new CloudViewer(this.Uploader.Service);
-            mCloud.Show();
+                mCloud.Show();
+            }
+            else
+                mCloud.Focus();
+        });
+
+        private RecordedListView mValut;
+        public ICommand OpenValut => new CustomCommand((x) => {
+            if (!(mValut?.IsLoaded ?? false))
+            {
+                mValut = new RecordedListView();
+                mValut.Show();
+            }
+            else
+                mValut.Focus();
         });
 
         private void Exit_Click(object sender, RoutedEventArgs e)

@@ -74,6 +74,10 @@
       <HintPath>..\packages\Microsoft.OneDriveSDK.2.0.7\lib\portable-net45+netcore45+wpa81+win8\Microsoft.OneDrive.Sdk.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="MySql.Data, Version=8.0.15.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\MySQL\MySQL Connector Net 8.0.15\Assemblies\v4.5.2\MySql.Data.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -104,8 +108,24 @@
     <Reference Include="WPFMediaKit, Version=2.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\WPFMediaKit.2.2.0\lib\WPFMediaKit.dll</HintPath>
     </Reference>
+    <Reference Include="Xceed.Wpf.AvalonDock, Version=3.5.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Extended.Wpf.Toolkit.3.5.0\lib\net40\Xceed.Wpf.AvalonDock.dll</HintPath>
+    </Reference>
+    <Reference Include="Xceed.Wpf.AvalonDock.Themes.Aero, Version=3.5.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Extended.Wpf.Toolkit.3.5.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.Aero.dll</HintPath>
+    </Reference>
+    <Reference Include="Xceed.Wpf.AvalonDock.Themes.Metro, Version=3.5.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Extended.Wpf.Toolkit.3.5.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.Metro.dll</HintPath>
+    </Reference>
+    <Reference Include="Xceed.Wpf.AvalonDock.Themes.VS2010, Version=3.5.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Extended.Wpf.Toolkit.3.5.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.VS2010.dll</HintPath>
+    </Reference>
+    <Reference Include="Xceed.Wpf.Toolkit, Version=3.5.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Extended.Wpf.Toolkit.3.5.0\lib\net40\Xceed.Wpf.Toolkit.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Database.cs" />
     <Compile Include="dsPlayer\amstream.cs" />
     <Compile Include="dsPlayer\amvideo.cs" />
     <Compile Include="dsPlayer\atscpsipparser.cs" />
@@ -168,6 +188,12 @@
     <Compile Include="EPGStationWarpper\Api\Program.cs" />
     <Compile Include="EPGStationWarpper\Helper.cs" />
     <Compile Include="GoogleWarpper\GoogleDrive.cs" />
+    <Compile Include="MasterView\PasswordCheckDialog.xaml.cs">
+      <DependentUpon>PasswordCheckDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MasterView\RecordedListView.xaml.cs">
+      <DependentUpon>RecordedListView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MasterView\Setting.xaml.cs">
       <DependentUpon>Setting.xaml</DependentUpon>
     </Compile>
@@ -186,9 +212,9 @@
       <DependentUpon>Uploader.xaml</DependentUpon>
     </Compile>
     <Compile Include="MasterView\ViewModel\CustomCommand.cs" />
-    <Compile Include="MasterView\ViewModel\DialogCloser.cs" />
     <Compile Include="MasterView\ViewModel\DriveTree.cs" />
     <Compile Include="MasterView\ViewModel\ProgressInfo.cs" />
+    <Compile Include="MasterView\ViewModel\RecordListViewViewModel.cs" />
     <Compile Include="MasterView\ViewModel\SettingViewModel.cs" />
     <Compile Include="MasterView\ViewModel\UploaderViewModel.cs" />
     <Compile Include="MasterView\CloudViewer.xaml.cs">
@@ -298,12 +324,23 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="FodyWeavers.xml" />
+    <Resource Include="Resources\passwd.png">
+      <CustomToolNamespace>RVMCore</CustomToolNamespace>
+    </Resource>
     <None Include="Resources\Zerode-Plump-Document-exe.ico" />
     <None Include="Resources\Zerode-Plump-Document-bat.ico" />
     <None Include="Resources\NotifyTrayNormal.ico" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="Forms\MetaInfoView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="MasterView\PasswordCheckDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="MasterView\RecordedListView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

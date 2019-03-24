@@ -7,6 +7,8 @@ using System.Threading;
 using System.Windows.Data;
 using RVMCore.GoogleWarpper;
 using RVMCore.MasterView.ViewModel;
+using System.Collections.Generic;
+using System.Windows.Input;
 
 namespace RVMCore.MasterView
 {
@@ -66,6 +68,7 @@ namespace RVMCore.MasterView
 
         private PipeServer<RmtFile> midObject;
 
+        private Database mDatabase;
         public bool IsWorking
         {
             get
@@ -77,18 +80,55 @@ namespace RVMCore.MasterView
                 else return false;
             }
         }
+
+        private System.Threading.Timer DBTimer;
+
+        private void DBOperator(object state)
+        {
+            //Check dbonline or not.
+            if(this.mDatabase is null)
+            {
+                try
+                {
+                    this.mDatabase = new Database();
+                }
+                catch
+                {
+                    return;
+                }
+            }
+            try
+            {
+                var locker = new object();
+                BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
+                foreach (var item in this.mDatabase.LoadData())
+                {
+                    if (!FileList.Any(x => x.ID == item.ID)) this.Execute(() => FileList.Add(new UploadFile(item, mDatabase)));
+                }
+                BindingOperations.DisableCollectionSynchronization(this.FileList);
+                FileList.ForEach(x => x.RefreshData());
+                this.TotalLength = FileList.Sum(x => x.Length);
+                this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
         public UploaderViewModel()
         {
             //Set a named pipe to accept commands from other instanes.
             midObject = new PipeServer<RmtFile>("RVMCoreUploader");
             midObject.PipeMessage += midObjectFileRecivedHdlr;
             if(!midObject.StartListen())MessageBox.Show("Unable to dig pip holes.", "Error",  MessageBoxButtons.OK);
-            //Define uploading thread workload
+            DBTimer = new System.Threading.Timer(this.DBOperator,null,1000, 180000);
+            //Define uploading thread workload 
             this.UploadWorkload = new ThreadStart(() =>
             {
                 do
                  {
-                     ThreadControlName = "Pause";
+                    ThreadControlName = "Pause";
                     this.mUpObj = null;
                      try
                      {
@@ -135,7 +175,7 @@ namespace RVMCore.MasterView
                         ProcessNowState = false;
                         isSuccess = this.mUpObj.Upload(Service);
                     }
-
+                    if (UploadTokenSource?.Token.IsCancellationRequested ?? false) break;
                     Processed += this.mUpObj.Length;
                     ProcessNow.SetValue(0, 0, "Done.");
                     this.mUpObj.IsOver = isSuccess;
@@ -156,9 +196,13 @@ namespace RVMCore.MasterView
             {
                 var locker = new object();
                 BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
-                this.Execute(() => this.FileList.Add(new UploadFile(e)));
+                var upfile = new UploadFile(e);
+                this.Execute(() => this.FileList.Add(upfile)); //Add new file.
+                this.Execute(() => FileList.ForEach(x => x.RefreshData())); // refresh all items.
+                this.TotalLength = FileList.Sum(x => x.Length); //cal total size.
+                this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0); // calic all uploaded.
                 BindingOperations.DisableCollectionSynchronization(this.FileList);
-                if (!this.IsWorking) this.Start_Click(null, null);
+                if (!this.IsWorking && SettingObj.Read().StartUploadWhenDataAvailable) this.StartOperation(null);
             }
             catch(Exception ex)
             {
@@ -172,6 +216,7 @@ namespace RVMCore.MasterView
         //private:
         Thread mThread;
         ThreadStart UploadWorkload;
+        CancellationTokenSource UploadTokenSource;
         public GoogleDrive Service { get; private set; } = null;
 
         private readonly Color PausedColor = Color.FromArgb(0xFF, 0xFF, 0xB9, 0x00);
@@ -193,9 +238,10 @@ namespace RVMCore.MasterView
                 this.ProcessGen.SetValue(Processed + value, TotalLength);
             }
         }
-        public void Open_Click(object sender, EventArgs e)
+        public ICommand OpenFileCommand => new CustomCommand(OpenFile);
+        private void OpenFile(object sender)
         {
-            using (var mdlg = new System.Windows.Forms.OpenFileDialog())
+            using (var mdlg = new OpenFileDialog())
             {
                 mdlg.CheckFileExists = true;
                 mdlg.Filter = "Transport Stream(*.ts;*.m2ts)|*.ts;*.m2ts|Meta Data(*.meta;*.xml)|*.meta;*.xml|All file(*.*)|*.*";
@@ -214,13 +260,20 @@ namespace RVMCore.MasterView
             this.TotalLength = FileList.Sum(x => x.Length);
             this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0);
         }
-
-        public void Start_Click(object sender, EventArgs e)
+        public ICommand StartOperationCommand => new CustomCommand(StartOperation);
+        private void StartOperation(object sender)
         {
-            if (mThread == null || !mThread.IsAlive) { mThread = new System.Threading.Thread(UploadWorkload); mThread.Start(); return; }
-            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Unstarted)) return;
-            if (this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.Suspended)||
-                this.mUpObj.ThreadState.HasFlag(System.Threading.ThreadState.SuspendRequested))
+            if (mThread == null || !mThread.IsAlive)
+            {
+                UploadTokenSource?.Dispose();
+                mThread = new Thread(UploadWorkload);
+                UploadTokenSource = new CancellationTokenSource();
+                mThread.Start();
+                return;
+            }
+            if (this.mUpObj.ThreadState.HasFlag(ThreadState.Unstarted)) return;
+            if (this.mUpObj.ThreadState.HasFlag(ThreadState.Suspended)||
+                this.mUpObj.ThreadState.HasFlag(ThreadState.SuspendRequested))
             {
                 //mThread.Resume();
                 this.mUpObj.Resume();
@@ -235,8 +288,8 @@ namespace RVMCore.MasterView
                 ThreadControlName = "Resume";
             }
         }
-
-        public void RemoveItem(object sender, EventArgs e)
+        public ICommand RemoveItemCommand => new CustomCommand(RemoveItem);
+        private void RemoveItem(object sender)
         {
             if (this.SelectedItem == null) return;
             try
@@ -253,6 +306,7 @@ namespace RVMCore.MasterView
                     {
                         SelectedItem.Abort();
                         this.FileList.Remove(this.SelectedItem);
+                        this.mDatabase.SetUploadStatus(this.SelectedItem.ID, true, false);
                     }
                 }
                 else
@@ -262,7 +316,10 @@ namespace RVMCore.MasterView
                                         "Removing object from list.", 
                                         MessageBoxButtons.YesNo, 
                                         MessageBoxIcon.Warning) == DialogResult.Yes)
+                    { 
                         this.FileList.Remove(this.SelectedItem);
+                        this.mDatabase.SetUploadStatus(this.SelectedItem.ID, true, false);
+                    }
                 }
             }
             catch
@@ -273,21 +330,30 @@ namespace RVMCore.MasterView
             this.Processed = FileList.Sum(x => x.IsOver ? x.Length : 0);
         }
 
-        public void ResetThreads()
+
+        public ICommand ResetThreadsCommand => new CustomCommand(ResetThreads);
+        private void ResetThreads(object sender)
         {
             if (mThread != null && mThread.IsAlive)
             {
-                if (mThread.IsAlive) mThread.Abort();
                 if (this.mUpObj.IsUploading)
                     this.mUpObj.Abort();
-                Thread.Sleep(1000);
+                //if (mThread.IsAlive) mThread.Abort();
+                UploadTokenSource?.Cancel();
+                mThread.Join();
+                UploadTokenSource?.Dispose();
                 mThread = new Thread(UploadWorkload);
+                UploadTokenSource = new CancellationTokenSource();
                 mThread.Start();
+                ProcessStateColor = this.ProcesColor;
+                ThreadControlName = "Pause";
                 return;
             }
         }
 
-        public void UpItem(object sender, EventArgs e)
+        public ICommand UpItemCommand => new CustomCommand(UpItem);
+
+        private void UpItem(object sender)
         {
             if (this.SelectedItem == null) return;
             int index = this.FileList.IndexOf(this.SelectedItem);
@@ -295,7 +361,8 @@ namespace RVMCore.MasterView
             this.FileList.Move(index, index - 1);
         }
 
-        public void DownItem(object sender, EventArgs e)
+        public ICommand DownItemCommand => new CustomCommand(DownItem);
+        private void DownItem(object sender)
         {
             if (this.SelectedItem == null) return;
             int index = this.FileList.IndexOf(this.SelectedItem);
@@ -310,7 +377,9 @@ namespace RVMCore.MasterView
             {
                 mThread.Abort();
             }
+            DBTimer.Dispose();
             ((IDisposable)Service).Dispose();
+            mDatabase.Dispose();
         }
         #endregion
     }

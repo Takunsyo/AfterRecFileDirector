@@ -27,21 +27,6 @@ namespace RVMCore.MasterView
             mView = new UploaderViewModel();
             this.DataContext = mView;
             mView.NowProcressingContent = "Progress";
-            //mView.ProcessBarTextNow = "Now procress 50%";
-            //mView.ProcessGenMax = 100;
-            //mView.ProcessGenValue = 1;
-            //mView.ProcessNowMax = 100;
-            //mView.ProcessNowValue = 50;
-            //mView.ProcessBarTextGen = "Genral progress 1%";
-        }
-        public void Open_Click(object sender, EventArgs e)
-        {
-            mView.Open_Click(sender, e);
-        }
-
-        public void Start_Click(object sender, EventArgs e)
-        {
-            mView.Start_Click(sender, e);
         }
 
         private static readonly Regex _regex = new Regex("[^0-9.-]+"); //regex that matches disallowed text
@@ -83,27 +68,5 @@ namespace RVMCore.MasterView
             }
             mView.Dispose();
         }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            mView.UpItem(sender, e);
-        }
-
-        private void Button_Click_1(object sender, RoutedEventArgs e)
-        {
-            mView.RemoveItem(sender, e);
-        }
-
-        private void Button_Click_2(object sender, RoutedEventArgs e)
-        {
-            mView.DownItem(sender, e);
-        }
-
-        private void Button_Click_3(object sender, RoutedEventArgs e)
-        {
-            mView.ResetThreads();
-        }
     }
-
-
 }

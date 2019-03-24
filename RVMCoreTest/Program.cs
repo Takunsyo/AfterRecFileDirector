@@ -11,6 +11,7 @@ using System.Windows.Forms.Integration;
 using System.Runtime.Remoting.Channels.Ipc;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting;
+using System.Data;
 
 namespace RVMCoreTest
 {
@@ -28,20 +29,40 @@ namespace RVMCoreTest
 #endif
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            //var t =MasterHelper.GetFolderIDbyPath(@"EPGRecords\1[アニメ類]\[Q4'18,Q1'18]火ノ丸相撲");
-            //Console.WriteLine(t);
             //Application.Run(new Form1());
             //var wpfwindow = new RVMCore.Forms.Uploader();
             //var wpfwindow = new RVMCore.MasterView.MasterViewControl();
             //var wpfwindow = new RVMCore.Forms.CloudViewer();
             //var wpfwindow = new RVMCore.MasterView.Setting();
-            //var result = wpfwindow.ShowDialog();
+
+            var mdata = new Database("127.0.0.1", "laoxiaoms", "76151319");
+            var wpfwindow = new RVMCore.MasterView.PasswordCheckDialog(mdata);
+            var result = wpfwindow.ShowDialog();
+            //if (result?? false)
+            //{
+            //    Console.WriteLine("OK");
+            //}
             //RVMCore.TVAFT.SortFile(new string[] { "-mirakurun" });
+            //RVMCore.TVAFT.SortFile(new string[] { "-rcdbview" });
             //RVMCore.TVAFT.SortFile(new string[] { "-epgstation", "-id", "169" });
             //RVMCore.TVAFT.SortFile(new string[] { "-upload" });
             //RVMCore.TVAFT.SortFile(new string[] { "-cloud" });
-            RVMCore.TVAFT.SortFile(new string[] { "-main" });
+            //RVMCore.TVAFT.SortFile(new string[] { "-main" });
             //Application.Run(new RVMCore.Forms.Window1());
+            //RVMCore.TVAFT.TestMethod();
+            //var id = Database.GenerateID();
+            //var t = mdata.ValidDatabase();
+            //Console.WriteLine();
+            //mdata.CreateDatabase();
+
+            //var dataTable = new DataTable();
+            //mdata.LoadData(ref dataTable, false);
+            //mdata.LoadData(ref dataTable, true);
+            //foreach (var i in dataTable.Rows)
+            //{
+            //    Console.WriteLine(i.ToString());
+            //}
+
         }
     }
 

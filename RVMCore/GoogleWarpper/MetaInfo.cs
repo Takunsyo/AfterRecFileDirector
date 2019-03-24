@@ -32,5 +32,15 @@ namespace RVMCore.GoogleWarpper
         /// </summary>
         public static bool IsFolder(this Google.Apis.Drive.v3.Data.File mfile) =>
             mfile?.MimeType?.ToLower().Equals("application/vnd.google-apps.folder") ?? false;
+
+        public static void AddContentRange(this System.Net.HttpWebRequest request, long from, long to, long length)
+        {
+            if(from == to || to <=0)
+            {
+                request.Headers.Add("Content-Range",$"bytes */{length}");
+                return;
+            }
+            request.Headers.Add("Content-Range",$"bytes {from}-{to}/{length}");
+        }
     }
 }

@@ -1,0 +1,86 @@
+﻿<Window x:Class="RVMCore.MasterView.RecordedListView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RVMCore.MasterView"
+        xmlns:toolkit ="clr-namespace:Xceed.Wpf.Toolkit;assembly=Xceed.Wpf.Toolkit"
+        xmlns:v="clr-namespace:RVMCore.MasterView.ViewModel"
+        mc:Ignorable="d"
+        Title="RecordedListView" Height="450" Width="900" Closing="Window_Closing" MinHeight="450" MinWidth="900">
+    <Window.Resources>
+        <v:BoolToVisConverter x:Key="BoolVisConv"/>
+        <v:LongToTimeConverter x:Key="LongTimeConv"/>
+        <v:DataToBoolConverter x:Key="DataBoolConv"/>
+    </Window.Resources>
+    <Grid Margin="3">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="25"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="100"/>
+                <ColumnDefinition Width="60"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="From:" Grid.Column="0" VerticalAlignment="Center" TextAlignment="Center"/>
+            <toolkit:DateTimePicker Grid.Column="1" Value="{Binding Path=TimeFrom,Mode=TwoWay}"/>
+            <TextBlock Text="To:" Grid.Column="2" VerticalAlignment="Center" TextAlignment="Center"/>
+            <toolkit:DateTimePicker Grid.Column="3" Value="{Binding Path=TimeTo,Mode=TwoWay}"/>
+            <CheckBox Content="Show Hidden" IsChecked="{Binding Path=LoadAll,Mode=TwoWay}" VerticalAlignment="Center" Grid.Column="4"/>
+            <Button Content="Load" Grid.Column="5" Command="{Binding Path=LoadCommand}" Margin="3,1" IsEnabled="{Binding Path=IsReady,Mode=OneWay}"/>
+        </Grid>
+
+        <DataGrid Grid.Row="1" Margin="2" ItemsSource="{Binding Path=MainTable}" AutoGenerateColumns="False" SelectionMode="Single"
+                  SelectedItem="{Binding Path=SelectedItem,Mode=TwoWay}" Name="MainDataView" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding id}" IsReadOnly="True" 
+                                    Visibility="{Binding Source={x:Reference chkID},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridTextColumn Header="Start Time" Binding="{Binding time,Converter={StaticResource LongTimeConv}}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkTime},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding name}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkName},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridCheckBoxColumn Header="Uploaded" Binding="{Binding isuploaded}" IsReadOnly="True"
+                                        Visibility="{Binding Source={x:Reference chkUploaded},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridTextColumn Header="Upload Progress" Binding="{Binding upprogress}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkProgress},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridTextColumn Header="File Path" Binding="{Binding path}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkFilepath},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridTextColumn Header="Upload ID" Binding="{Binding uploadid}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkUploadid},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+                <DataGridCheckBoxColumn Header="Visible" Binding="{Binding showonuploader}" IsReadOnly="True"
+                                    Visibility="{Binding Source={x:Reference chkHidden},Path=IsChecked,Converter={StaticResource BoolVisConv},Mode=OneWay}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="30"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel  Orientation="Horizontal" Grid.Column="0">
+                <TextBlock Text="Columns:" Margin="5,0"/>
+                <CheckBox Name="chkID" Content="ID" IsChecked="False" Margin="5,0"/>
+                <CheckBox Name="chkTime" Content="Record Time" IsChecked="True" Margin="5,0"/>
+                <CheckBox Name="chkName" Content="Name" IsChecked="True" Margin="5,0"/>
+                <CheckBox Name="chkUploaded" Content="Is Uploaded" IsChecked="True" Margin="5,0"/>
+                <CheckBox Name="chkProgress" Content="Upload Progress" IsChecked="False" Margin="5,0"/>
+                <CheckBox Name="chkFilepath" Content="File Path" IsChecked="True" Margin="5,0"/>
+                <CheckBox Name="chkUploadid" Content="Google ID" IsChecked="False" Margin="5,0"/>
+                <CheckBox Name="chkHidden" Content="Visible" IsChecked="False" Margin="5,0"/>
+            </StackPanel>
+            <Button Content="Open Folder" Grid.Column="1" Margin="5,0" Command="{Binding Path=OpenFolderCommand}"
+                    IsEnabled="{Binding Source={x:Reference MainDataView},Path=SelectedItem,Converter={StaticResource DataBoolConv}}"/>
+            <Button Content="View Meta" Grid.Column="2" Margin="5,0" Command="{Binding Path=OpenMetaCommand}"
+                    IsEnabled="{Binding Source={x:Reference MainDataView},Path=SelectedItem,Converter={StaticResource DataBoolConv}}"/>
+            <Button Content="X" Grid.Column="3" Margin="5,0" Command="{Binding Path=RemoveLineCommand}"/>
+        </Grid>
+    </Grid>
+</Window>

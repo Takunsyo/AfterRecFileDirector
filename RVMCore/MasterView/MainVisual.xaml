@@ -154,6 +154,7 @@
                         </MenuItem.ItemTemplate>
                     </MenuItem>
                     <Separator />
+                    <MenuItem Header="_Recorded Valut" Command="{Binding OpenValut}"/>
                     <MenuItem Header="_App Settings" Command="{Binding OpenSetting}"/>
                     <MenuItem Header="_Exit Application" Click="Exit_Click"/>
                 </ContextMenu>

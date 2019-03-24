@@ -59,25 +59,5 @@ namespace RVMCore.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   查找类似于 (Icon) 的 System.Drawing.Icon 类型的本地化资源。
-        /// </summary>
-        internal static System.Drawing.Icon NotifyTrayNormal {
-            get {
-                object obj = ResourceManager.GetObject("NotifyTrayNormal", resourceCulture);
-                return ((System.Drawing.Icon)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似于 (Icon) 的 System.Drawing.Icon 类型的本地化资源。
-        /// </summary>
-        internal static System.Drawing.Icon NotifyTrayWorking {
-            get {
-                object obj = ResourceManager.GetObject("NotifyTrayWorking", resourceCulture);
-                return ((System.Drawing.Icon)(obj));
-            }
-        }
     }
 }
