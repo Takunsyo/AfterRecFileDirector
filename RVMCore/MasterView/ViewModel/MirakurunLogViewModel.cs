@@ -2,7 +2,6 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Threading;
 using System.Windows.Data;
 using System.Windows.Media;
 
@@ -42,7 +41,7 @@ namespace RVMCore.MasterView
         private void LogsFailedCallback(object sender)
         {
             var serv = (MirakurunService)sender;
-            Thread.Sleep(3000);
+            System.Threading.Tasks.Task.Delay(3000);
             //serv.SubscribeLogs(LogsFailedCallback);
         }
 

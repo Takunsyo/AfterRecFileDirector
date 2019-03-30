@@ -1,4 +1,5 @@
 ﻿<Window x:Class="RVMCore.MasterView.Uploader"
+        xmlns:y="clr-namespace:RVMCore.MasterView.ViewModel"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -8,8 +9,11 @@
         Title="{Binding MainName}" 
         Height="450" Width="650" 
         HorizontalAlignment="Left" VerticalAlignment="Top" 
-        ResizeMode="CanMinimize"
+        ResizeMode="CanResize"
         Closing="Window_Closing">
+    <Window.Resources>
+        <y:ListWidthNumberConverter x:Key="ListWidthNumberConverter"/>
+    </Window.Resources>
     <Grid Margin="3">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="66"/>
@@ -23,79 +27,82 @@
             <RowDefinition Height="25"/>
             <RowDefinition Height="25"/>
         </Grid.RowDefinitions>
-        <Grid Margin="3,3" Grid.Row="4" Grid.ColumnSpan="3">
-            <ProgressBar x:Name="progressBar" Height="21" 
-                            VerticalAlignment="Top"
-                            Foreground="{Binding ProcessStateBrush}"
-                            IsIndeterminate="{Binding ProcessNowState}"
-                            Maximum="{Binding ProcessNow.Max,Mode=OneWay}" 
-                            Value="{Binding ProcessNow.Val,Mode=OneWay}"/>
-            <TextBlock TextWrapping="Wrap" 
-                        Text="{Binding ProcessNow.Text,Mode=OneWay}" 
-                        VerticalAlignment="Center" 
-                        Height="21" 
-                        TextAlignment="Center"/>
-            <Grid.Effect>
-                <DropShadowEffect Color="{Binding ProcessStateColor}"
-                        ShadowDepth="0"
-                        BlurRadius="5"/>
-            </Grid.Effect>
-        </Grid>
-        <Grid Margin="3"  Grid.ColumnSpan="3" Grid.Row="3">
-            <ProgressBar Height="21" 
-                        VerticalAlignment="Top" 
-                        Foreground="{Binding ProcessStateBrush}"
-                        Maximum="{Binding ProcessGen.Max,Mode=OneWay}" 
-                        Value="{Binding ProcessGen.Val,Mode=OneWay}"/>
-            <TextBlock TextWrapping="Wrap" 
-                    Text="{Binding ProcessGen.Text,Mode=OneWay}" 
-                    TextAlignment="Center"/>
-
-            <Grid.Effect>
-                <DropShadowEffect Color="{Binding ProcessStateColor}"
-                          ShadowDepth="0"
-                          BlurRadius="5" />
-            </Grid.Effect>
-        </Grid>
+        <DockPanel Margin="0,2" Grid.Row="0" Grid.ColumnSpan="3" LastChildFill="True">            
+            <Button Content="Open" Command="{Binding OpenFileCommand}"
+                    Width=" 80"
+                Margin="3,0" 
+                DockPanel.Dock="Right"/>
+            <TextBox TextWrapping="NoWrap" 
+                   Text="{Binding Path=NowProcressingContent}" 
+                   IsReadOnly="True" 
+                   DockPanel.Dock="Left"/>
+        </DockPanel>
+        
         <Grid Grid.ColumnSpan="3" Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="600"/>
-                <ColumnDefinition/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="35"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="30*"/>
                 <RowDefinition Height="30*"/>
                 <RowDefinition Height="30*"/>
             </Grid.RowDefinitions>
-            <ListBox ItemsSource="{Binding FileList}" 
-                 Grid.RowSpan="3"
-                 Grid.Column="0"
-                 SelectedItem="{Binding SelectedItem,Mode=TwoWay}">
-                <!--DisplayMemberPath="ShowName"-->
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="530"/>
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding ShowName}"/>
-                            <TextBlock Grid.Column="1" HorizontalAlignment="Right" Text="{Binding Size}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            <Button Grid.Row="0" Grid.Column="1" Content="⇧" Margin="2,20" HorizontalContentAlignment="Center" Command="{Binding UpItemCommand}"/>
-            <Button Grid.Row="1" Grid.Column="1" Content="✖" Margin="2,20" HorizontalContentAlignment="Center" Command="{Binding RemoveItemCommand}"/>
-            <Button Grid.Row="2" Grid.Column="1" Content="⇩" Margin="2,20" HorizontalContentAlignment="Center" Command="{Binding DownItemCommand}"/>
+            <DockPanel Grid.RowSpan="3" Grid.Column="0">
+                <ListBox ItemsSource="{Binding FileList}" x:Name="MainList"
+                     SelectedItem="{Binding SelectedItem,Mode=TwoWay}" ScrollViewer.VerticalScrollBarVisibility="Visible">
+                    <!--DisplayMemberPath="ShowName"-->
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Width="{Binding ElementName=MainList,Path=ActualWidth,
+                                                Converter={StaticResource ListWidthNumberConverter}, 
+                                                    ConverterParameter=35}"><!--
+                                <DockPanel.Style>
+                                    <Style TargetType="DockPanel">
+                                        <Setter Property="Width" 
+                                                Value="{Binding ElementName=MainList,Path=ActualWidth,
+                                                Converter={StaticResource ListWidthNumberConverter}, 
+                                                    ConverterParameter=15}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ElementName=MainList,
+                                                            Path=ScrollViewer.VerticalScrollBarVisibility}" 
+                                                         Value="Visible">
+                                                <Setter Property="Width" 
+                                                        Value="{Binding ElementName=MainList,
+                                                            Path=ActualWidth,
+                                                            Converter={StaticResource ListWidthNumberConverter}, 
+                                                                ConverterParameter=35}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DockPanel.Style>-->
+                                <TextBlock Grid.Column="0" Text="{Binding ShowName}" 
+                                           Width="{Binding ElementName=MainList,
+                                                Path=ActualWidth,
+                                                Converter={StaticResource ListWidthNumberConverter}, 
+                                                    ConverterParameter=92}" 
+                                           DockPanel.Dock="Left"/>
+                                <TextBlock Grid.Column="1" HorizontalAlignment="Right" 
+                                           Text="{Binding Size}" DockPanel.Dock="Right"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+            <Button Grid.Row="0" Grid.Column="1" Content="⇧" Margin="2,20" 
+                    HorizontalContentAlignment="Center" Command="{Binding UpItemCommand}"/>
+            <Button Grid.Row="1" Grid.Column="1" Content="✖" Margin="2,20" 
+                    HorizontalContentAlignment="Center" Command="{Binding RemoveItemCommand}"/>
+            <Button Grid.Row="2" Grid.Column="1" Content="⇩" Margin="2,20" 
+                    HorizontalContentAlignment="Center" Command="{Binding DownItemCommand}"/>
         </Grid>
 
         <Button Content="{Binding ThreadControlName}" 
                 Command="{Binding StartOperationCommand}"
                 Margin="3,3" 
                 Grid.Column="3" Grid.Row="2"/>
-        <Button Content="Open" 
-                Command="{Binding OpenFileCommand}"
+        <Button Content="Stop" IsEnabled="{Binding Path=IsWorking,Mode=OneWay}"
+                Command="{Binding StopWorkCommand}"
                 Margin="3,3" 
                 Grid.Column="0" Grid.Row="2"/>
         <Button Content="ResetThread"
@@ -103,11 +110,6 @@
                 HorizontalAlignment="Right"
                 Grid.Column="1" Grid.Row="2" 
                 Command="{Binding ResetThreadsCommand}"/>
-        <TextBox TextWrapping="NoWrap" 
-                   Text="{Binding Path=NowProcressingContent}" 
-                   IsReadOnly="True" 
-                   Margin="0,2"
-                 Grid.ColumnSpan="3"/>
         <Grid Margin="150,0" Grid.Row="2" Grid.Column="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="45*"/>
@@ -156,6 +158,41 @@
                     </Style.Triggers>
                 </Style>
             </Grid.Style>
+        </Grid>
+
+        <Grid Margin="3"  Grid.ColumnSpan="3" Grid.Row="3">
+            <ProgressBar Height="21" 
+                        VerticalAlignment="Top" 
+                        Foreground="{Binding ProcessStateBrush}"
+                        Maximum="{Binding ProcessGen.Max,Mode=OneWay}" 
+                        Value="{Binding ProcessGen.Val,Mode=OneWay}"/>
+            <TextBlock TextWrapping="Wrap" 
+                    Text="{Binding ProcessGen.Text,Mode=OneWay}" 
+                    TextAlignment="Center"/>
+
+            <Grid.Effect>
+                <DropShadowEffect Color="{Binding ProcessStateColor}"
+                          ShadowDepth="0"
+                          BlurRadius="5" />
+            </Grid.Effect>
+        </Grid>
+        <Grid Margin="3,3" Grid.Row="4" Grid.ColumnSpan="3">
+            <ProgressBar x:Name="progressBar" Height="21" 
+                            VerticalAlignment="Top"
+                            Foreground="{Binding ProcessStateBrush}"
+                            IsIndeterminate="{Binding ProcessNowState}"
+                            Maximum="{Binding ProcessNow.Max,Mode=OneWay}" 
+                            Value="{Binding ProcessNow.Val,Mode=OneWay}"/>
+            <TextBlock TextWrapping="Wrap" 
+                        Text="{Binding ProcessNow.Text,Mode=OneWay}" 
+                        VerticalAlignment="Center" 
+                        Height="21" 
+                        TextAlignment="Center"/>
+            <Grid.Effect>
+                <DropShadowEffect Color="{Binding ProcessStateColor}"
+                        ShadowDepth="0"
+                        BlurRadius="5"/>
+            </Grid.Effect>
         </Grid>
     </Grid>
 </Window>

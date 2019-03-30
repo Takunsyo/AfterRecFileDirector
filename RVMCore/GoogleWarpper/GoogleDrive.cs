@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Diagnostics;
 using System.Security.Cryptography;
-using System.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
 
 namespace RVMCore.GoogleWarpper
@@ -417,50 +416,55 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public bool? RemoteFileExists(string fullFilePath, IEnumerable<string> parentID, bool checkMD5 = true)
+        public string RemoteFileExists(string fullFilePath, IEnumerable<string> parentID, bool checkMD5 = true)
         {
             if (parentID == null) parentID = new string[] { "root" };
-            if (!System.IO.File.Exists(fullFilePath)) return false;
+            if (!System.IO.File.Exists(fullFilePath)) return null;
             //getMD5Checksum
             string mMD5 = null;
             using (var mTokenSource = new CancellationTokenSource())
             {
-                Thread tgMD5 = new Thread(new ThreadStart(() => {
-                    try { 
-                        mMD5 = CalculateMD5(fullFilePath,mTokenSource.Token);
-                        "MD5Cal Completed!".InfoLognConsole();
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        "MD5Cal Canceled!".InfoLognConsole();
-                    }
-                    catch(Exception e)
-                    {
-                        "MD5Cal Error![{0}]".ErrorLognConsole(e.Message);
-                    }
-                }));
-                if(checkMD5)tgMD5.Start();
+                var mHandle = new ManualResetEvent(true);
+                if (checkMD5)
+                    ThreadPool.QueueUserWorkItem(x => {
+                        try { 
+                            mMD5 = CalculateMD5(fullFilePath,mTokenSource.Token);
+                            "MD5Cal Completed!".InfoLognConsole();
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            "MD5Cal Canceled!".InfoLognConsole();
+                        }
+                        catch(Exception e)
+                        {
+                            "MD5Cal Error![{0}]".ErrorLognConsole(e.Message);
+                        }
+                        finally
+                        {
+                            mHandle.Set(); //Single the caller thread to stop waiting.
+                        }
+                    });
                 string fileNameWithExtension = System.IO.Path.GetFileName(fullFilePath);
                 var fList = this.GetGoogleFiles("name contains '{0}' and '{1}' in parents", 
                                                 fileNameWithExtension.CheckStringForQuerry(), 
                                                 parentID.First());
                 if ((fList?.Count() ?? 0) == 0)
                 {
-                    if (tgMD5.IsAlive) mTokenSource.Cancel();
-                    return false;
+                    mTokenSource.Cancel();
+                    return string.Empty;
                 }
                 if (fList.Count() > 1 && !checkMD5) return null;
                 if(fList.Count() > 1)
                 {
-                    if (tgMD5.IsAlive) tgMD5.Join();
+                    mHandle.WaitOne();
                     foreach (var i in fList)
                     {
-                        if (i.Md5Checksum == mMD5) return true;
+                        if (i.Md5Checksum == mMD5) return i.Id;
                     }
                 }
-                if (!checkMD5) return true;
-                if (tgMD5.IsAlive) tgMD5.Join();
-                return fList.Any(x => x.Md5Checksum == mMD5);
+                if (!checkMD5) return fList.First().Id;
+                mHandle.WaitOne();
+                return fList.Any(x => x.Md5Checksum == mMD5) ? fList.First(x => x.Md5Checksum == mMD5).Id : string.Empty;
             }
         }
 
@@ -472,7 +476,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="parentID"></param>
         /// <returns></returns>
-        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true) =>
+        public async Task<string> RemoteFileExistsAsync(string fullFilePath, IEnumerable<string> parentID,bool checkMD5 = true) =>
             await Task.Run(() => this.RemoteFileExists(fullFilePath, parentID,checkMD5));
         
         /// <summary>
@@ -483,7 +487,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public bool? RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
+        public string RemoteFileExists(string fullFilePath, string remotePath = null,bool checkMD5 = true)
         {
             if (!(remotePath?.IsNullOrEmptyOrWhiltSpace() ?? true))
             {
@@ -504,7 +508,7 @@ namespace RVMCore.GoogleWarpper
         /// <param name="fullFilePath"></param>
         /// <param name="remotePath"></param>
         /// <returns></returns>
-        public async Task<bool?> RemoteFileExistsAsync(string fullFilePath, string remotePath = null) => 
+        public async Task<string> RemoteFileExistsAsync(string fullFilePath, string remotePath = null) => 
             await Task.Run(() => this.RemoteFileExists(fullFilePath, remotePath));
         
         /// <summary>
@@ -569,56 +573,69 @@ namespace RVMCore.GoogleWarpper
                         if (counter <= 0) break;
                     }
                     bool isSend = false;
-                    ThreadStart WorkLoad = new ThreadStart(() => {
-                        req = InitHttpWebRequest(rmuri);
-                        req.Method = "PUT";
-                        req.Timeout = (5000);
-                        if (byteCnt < 0)
-                        {//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
-                            //Get upload progress.
-                            byteCnt = 0;
-                            req.ContentLength = counter;
-                            req.Headers.Add("Content-Range", string.Format("bytes */{0}", sr.Length));
-                        }
-                        else
+                    using (var myRest = new ManualResetEvent(true))
+                    {
+                        void uploadWorker(HttpWebRequest mrequest, CancellationToken uptoken, out int sleepTime)
                         {
-                            req.ContentLength = counter;
-                            req.Headers.Add("Content-Range", string.Format("bytes {0}-{1}/{2}", byteCnt, byteCnt + counter - 1, sr.Length));
-                        }
-                        try
-                        {
-                            using (System.IO.Stream reqStream = req.GetRequestStream())
+                            try
                             {
-                                reqStream.Write(tmp, 0, counter);
-                                isSend = true;
+                                uptoken.ThrowIfCancellationRequested();
+                                using (System.IO.Stream reqStream = mrequest.GetRequestStream())
+                                {
+                                    reqStream.Write(tmp, 0, counter);
+                                    isSend = true;
+                                    sleepTime = 0;
+                                }
+                            }
+                            catch (WebException ex)
+                            {
+                                mrequest.Abort();
+                                mrequest.ServicePoint.CloseConnectionGroup(mrequest.ConnectionGroupName);
+                                ex.Message.ErrorLognConsole();
+                                "Errur during upstream writing [Code:{1}({2})],[File:{0}]".InfoLognConsole(localPath, (int)ex.Status, ex.Status.ToString());
+                                if (byteCnt == 0) byteCnt -= 1;
+                                isSend = false;
+                                sleepTime = 1000;
+                                if (ex.Status == WebExceptionStatus.ConnectFailure ||
+                                    ex.Status == WebExceptionStatus.NameResolutionFailure ||
+                                    ex.Status == WebExceptionStatus.ProxyNameResolutionFailure)
+                                    sleepTime = 50000;
+                            }
+                            finally
+                            {
+                                myRest.Set();
                             }
                         }
-                        catch (WebException ex)
+                        while (!isSend)
                         {
-                            req.Abort();
-                            req.ServicePoint.CloseConnectionGroup(req.ConnectionGroupName);
-                            ex.Message.ErrorLognConsole();
-                            "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
-                            if (byteCnt == 0) byteCnt -= 1;
-                            isSend = false;
-                        }
-                    });
-                    while (!isSend)
-                    {
-                        var mWork = new Thread(WorkLoad);
-                        mWork.Start();
-                        mWork.Join(5500);
-                        if (mWork.IsAlive || !isSend)
-                        {
-                            req.Abort();
-                            mWork.Abort();
-                            "Timeout! reset thread".ErrorLognConsole();
-                            if (byteCnt == 0) byteCnt -= 1;
-                            Thread.Sleep(1000);
-                            GC.Collect();
+                            myRest.Reset();
+                            req = InitHttpWebRequest(rmuri);
+                            req.Method = "PUT";
+                            req.KeepAlive = false; //They say set this to false will limit abort errors.
+                            req.Timeout = (5000);
+                            req.ContentLength = counter;
+                            if (byteCnt < 0)//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
+                                req.AddContentRange(0, byteCnt = 0, sr.Length);
+                            else
+                                req.AddContentRange(byteCnt, byteCnt + counter - 1, sr.Length);
+
+                            using (var ut = new CancellationTokenSource())
+                            {
+                                int sltime = 0;
+                                ThreadPool.QueueUserWorkItem(x => uploadWorker(req, ut.Token, out sltime));
+                                if (!myRest.WaitOne(5500))
+                                {
+                                    ut.Cancel();
+                                    req.Abort();
+                                    myRest.WaitOne();
+                                    Console.WriteLine("Timeout! reset thread");
+                                    if (byteCnt == 0) byteCnt -= 1;
+                                    Task.Delay(sltime);
+                                    GC.Collect();
+                                }
+                            }
                         }
                     }
-
                     HttpWebResponse rep;
                     try //upload.
                     {
@@ -669,7 +686,7 @@ namespace RVMCore.GoogleWarpper
                             //Reached rate limit. suspend a few time then countinue.
                             "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
                             sr.Position -= counter;
-                            Thread.Sleep(1000);
+                            Task.Delay(1000);
                             break;
                         case 404:
                             "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
@@ -728,7 +745,7 @@ namespace RVMCore.GoogleWarpper
                         {
                             if (SpeedControl.ElapsedMilliseconds < 1000)
                             {
-                                Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                                Task.Delay((int)(1000 - SpeedControl.ElapsedMilliseconds));
                             }
                             spdCnt = 0;
                             SpeedControl.Restart();
@@ -867,58 +884,69 @@ namespace RVMCore.GoogleWarpper
                             if (counter <= 0) break;
                         }
                         bool isSend = false;
-                        ThreadStart WorkLoad = new ThreadStart(() => {
-                            req = InitHttpWebRequest(rmuri);
-                            req.Method = "PUT";
-                            req.KeepAlive = false;  
-                            req.Timeout = (5000);
-                            req.ContentLength = counter;
-                            if (byteCnt < 0)
-                            {//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
-                                //Get upload progress.
-                                byteCnt = 0;
-                                req.AddContentRange(0, 0, sr.Length);
-                            }
-                            else
+                        using (var myRest = new ManualResetEvent(true))
+                        {
+                            void uploadWorker(HttpWebRequest mrequest, CancellationToken uptoken, out int sleepTime)
                             {
-                                req.AddContentRange(byteCnt, byteCnt + counter - 1, sr.Length);
-                            }
-                            try
-                            {
-                                using (System.IO.Stream reqStream = req.GetRequestStream())
+                                try
                                 {
-                                    reqStream.Write(tmp, 0, counter);
-                                    isSend = true;
+                                    uptoken.ThrowIfCancellationRequested();
+                                    using (System.IO.Stream reqStream = mrequest.GetRequestStream())
+                                    {
+                                        reqStream.Write(tmp, 0, counter);
+                                        isSend = true;
+                                        sleepTime = 0;
+                                    }
+                                }
+                                catch (WebException ex)
+                                {
+                                    mrequest.Abort();
+                                    mrequest.ServicePoint.CloseConnectionGroup(mrequest.ConnectionGroupName);
+                                    ex.Message.ErrorLognConsole();
+                                    "Errur during upstream writing [Code:{1}({2})],[File:{0}]".InfoLognConsole(localPath, (int)ex.Status, ex.Status.ToString());
+                                    if (byteCnt == 0) byteCnt -= 1;
+                                    isSend = false;
+                                    sleepTime = 1000;
+                                    if (ex.Status == WebExceptionStatus.ConnectFailure ||
+                                        ex.Status == WebExceptionStatus.NameResolutionFailure ||
+                                        ex.Status == WebExceptionStatus.ProxyNameResolutionFailure)
+                                        sleepTime = 50000;
+                                }
+                                finally
+                                {
+                                    myRest.Set();
                                 }
                             }
-                            catch (WebException ex)
+                            while (!isSend)
                             {
-                                req.Abort();
-                                req.ServicePoint.CloseConnectionGroup(req.ConnectionGroupName);
-                                ex.Message.ErrorLognConsole();
-                                "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
-                                if (byteCnt == 0) byteCnt -= 1;
-                                isSend = false;
-                            }
-                        });
+                                myRest.Reset();
+                                req = InitHttpWebRequest(rmuri);
+                                req.Method = "PUT";
+                                req.KeepAlive = false; //They say set this to false will limit abort errors.
+                                req.Timeout = (5000);
+                                req.ContentLength = counter;
+                                if (byteCnt < 0)//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
+                                    req.AddContentRange(0, byteCnt = 0, sr.Length);
+                                else
+                                    req.AddContentRange(byteCnt, byteCnt + counter - 1, sr.Length);
 
-                        while (!isSend)
-                        {
-                            resetEvent?.WaitOne();
-                            var mWork = new Thread(WorkLoad);
-                            mWork.Start();
-                            mWork.Join(5500);
-                            if (mWork.IsAlive || !isSend)
-                            {
-                                req.Abort();
-                                mWork.Abort();
-                                "Timeout! reset thread".ErrorLognConsole();
-                                if (byteCnt == 0) byteCnt -= 1;
-                                Thread.Sleep(1000);
-                                GC.Collect();
+                                using (var ut = new CancellationTokenSource())
+                                {
+                                    int sltime = 0;
+                                    ThreadPool.QueueUserWorkItem(x => uploadWorker(req, ut.Token, out sltime));
+                                    if (!myRest.WaitOne(5500))
+                                    {
+                                        ut.Cancel();
+                                        req.Abort();
+                                        myRest.WaitOne();
+                                        Console.WriteLine("Timeout! reset thread");
+                                        if (byteCnt == 0) byteCnt -= 1;
+                                        await Task.Delay(sltime);
+                                        GC.Collect();
+                                    }
+                                }
                             }
                         }
-
                         HttpWebResponse rep;
                         try //upload.
                         {
@@ -978,7 +1006,7 @@ namespace RVMCore.GoogleWarpper
                                 //Reached rate limit. suspend a few time then countinue.
                                 "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
                                 sr.Position -= counter;
-                                Thread.Sleep(1000);
+                                await Task.Delay(1000);
                                 break;
                             case 404: // not found
                                 "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
@@ -1029,7 +1057,7 @@ namespace RVMCore.GoogleWarpper
                                 if (SpeedControl.ElapsedMilliseconds < 1000)
                                 {
                                     token?.ThrowIfCancellationRequested();
-                                    Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                                    await Task.Delay((int)(1000 - SpeedControl.ElapsedMilliseconds));
                                 }
                                 spdCnt = 0;
                                 SpeedControl.Restart();
@@ -1205,63 +1233,72 @@ namespace RVMCore.GoogleWarpper
                             if (counter <= 0) break;
                         }
                         bool isSend = false;
-                        ThreadStart WorkLoad = new ThreadStart(() =>
+                        using(var myRest = new ManualResetEvent(true))
                         {
-                            req = InitHttpWebRequest(rmuri);
-                            req.Method = "PUT";
-                            req.KeepAlive = false; //They say set this to false will limit abort errors.
-                            req.Timeout = (5000);
-                            req.ContentLength = counter;
-                            if (byteCnt < 0)
-                            {//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
-                             //Get upload progress.
-                                byteCnt = 0;
-                                req.AddContentRange(0, 0, sr.Length);
-                            }
-                            else
+                            void uploadWorker(HttpWebRequest request,CancellationToken uptoken,out int sleepTime)
                             {
-                                req.AddContentRange(byteCnt, byteCnt + counter - 1, sr.Length);
-                            }
-                            try
-                            {
-                                using (System.IO.Stream reqStream = req.GetRequestStream())
+                                try
                                 {
-                                    reqStream.Write(tmp, 0, counter);
-                                    isSend = true;
+                                    uptoken.ThrowIfCancellationRequested();
+                                    using (System.IO.Stream reqStream = request.GetRequestStream())
+                                    {
+                                        reqStream.Write(tmp, 0, counter);
+                                        isSend = true;
+                                        sleepTime = 0;
+                                    }
+                                }
+                                catch (WebException ex)
+                                {
+                                    request.Abort();
+                                    request.ServicePoint.CloseConnectionGroup(request.ConnectionGroupName);
+                                    ex.Message.ErrorLognConsole();
+                                    "Errur during upstream writing [Code:{1}({2})],[File:{0}]".InfoLognConsole(localPath,(int)ex.Status,ex.Status.ToString());
+                                    if (byteCnt == 0) byteCnt -= 1;
+                                    isSend = false;
+                                    sleepTime = 1000;
+                                    if (ex.Status == WebExceptionStatus.ConnectFailure ||
+                                        ex.Status == WebExceptionStatus.NameResolutionFailure ||
+                                        ex.Status == WebExceptionStatus.ProxyNameResolutionFailure)
+                                        sleepTime = 50000;
+                                }
+                                finally
+                                {
+                                    myRest.Set();
                                 }
                             }
-                            catch (WebException ex)
+                            while (!isSend)
                             {
-                                req.Abort();
-                                req.ServicePoint.CloseConnectionGroup(req.ConnectionGroupName);
-                                ex.Message.ErrorLognConsole();
-                                "Socket timeout or unknown local Errors [File:{0}]".InfoLognConsole(localPath);
-                                if (byteCnt == 0) byteCnt -= 1;
-                                isSend = false;
+                                myRest.Reset();
+                                req = InitHttpWebRequest(rmuri);
+                                req.Method = "PUT";
+                                req.KeepAlive = false; //They say set this to false will limit abort errors.
+                                req.Timeout = (5000);
+                                req.ContentLength = counter;
+                                if (byteCnt < 0)//in case of .upload file exsits, this was first set to -1 means get upload progress from google server.
+                                    req.AddContentRange(0, byteCnt = 0, sr.Length);                                
+                                else                                
+                                    req.AddContentRange(byteCnt, byteCnt + counter - 1, sr.Length);
+                                
+                                using (var ut = new CancellationTokenSource())
+                                {
+                                    int sltime = 0;
+                                    ThreadPool.QueueUserWorkItem(x => uploadWorker(req,ut.Token,out sltime));
+                                    if (!myRest.WaitOne(5500))
+                                    {
+                                        ut.Cancel();
+                                        req.Abort();
+                                        myRest.WaitOne();
+                                        Console.WriteLine("Timeout! reset thread");
+                                        if (byteCnt == 0) byteCnt -= 1;
+                                        await Task.Delay(sltime);
+                                        GC.Collect();
+                                    }
+                                }
                             }
-                        });
-
-                        while (!isSend)
-                        {
-                            resetEvent?.WaitOne();
-                            var mWork = new Thread(WorkLoad);
-                            mWork.Start();
-                            mWork.Join(5500);
-                            if (mWork.IsAlive || !isSend)
-                            {
-                                req.Abort();
-                                mWork.Abort();
-                                "Timeout! reset thread".ErrorLognConsole();
-                                if (byteCnt == 0) byteCnt -= 1;
-                                Thread.Sleep(1000);
-                                GC.Collect();
-                            }
-                        } 
-
+                        }
                         HttpWebResponse rep;
                         try //upload.
                         {
-                            Console.WriteLine("Try getting response.");
                             rep = (HttpWebResponse)req.GetResponse();
                         }
                         catch (WebException ex)
@@ -1270,7 +1307,7 @@ namespace RVMCore.GoogleWarpper
                         }
                         if (rep == null)
                         {
-                            "Local Error! [File:{0}]".InfoLognConsole(localPath);
+                            $"Faild to get response! [Null Argument : Retern object is null.],[File : {localPath}]".InfoLognConsole();
                             sr.Position -= counter;
                             continue;
                         }
@@ -1283,7 +1320,7 @@ namespace RVMCore.GoogleWarpper
                                 if (counter != 0)
                                     evaSpeed.Add((int)(counter / mWatch.ElapsedMilliseconds * 1000));
                                 if (evaSpeed.Count > 10) evaSpeed.RemoveAt(0);
-                                UpdateProgressChanged?.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
+                                if(evaSpeed.Count>0)UpdateProgressChanged?.Invoke(sr.Length, sr.Length, (int)evaSpeed.Average());
                                 using (System.IO.Stream tmpst = rep.GetResponseStream())
                                 {
                                     var mmm = new byte[int.Parse(rep.Headers.Get("Content-Length"))];
@@ -1299,7 +1336,8 @@ namespace RVMCore.GoogleWarpper
                             case 502: //Bad gateway
                             case 503: //Service Unavailable
                             case 504: //Gateway time out.
-                                "Catch server error. Chunk[{1}/{2}] [{3}] File:[{0}]".InfoLognConsole(localPath, byteCnt, sr.Length, counter);
+                                ($"Network Error.[Code:{(int)rep.StatusCode}({rep.StatusCode.ToString()})] " +
+                                    $"Chunk[{byteCnt}/{sr.Length}] [{counter}] File:[{localPath}]").InfoLognConsole();
                                 using (System.IO.Stream tmpst = rep.GetResponseStream())
                                 {
                                     var mmm = new byte[int.Parse(rep.Headers.Get("Content-Length"))];
@@ -1314,9 +1352,9 @@ namespace RVMCore.GoogleWarpper
                             case 403: //Forbidden, mostly rached limit or insufficient access.
                             case 429: //Too many requests.
                                       //Reached rate limit. suspend a few time then countinue.
-                                "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 1000);
+                                "Reached rate limit. Suspend for [{1}]ms. File:[{0}]".InfoLognConsole(localPath, 30000);
                                 sr.Position -= counter;
-                                Thread.Sleep(1000);
+                                await Task.Delay(30000);
                                 break;
                             case 404: // not found
                                 "Upload failed! Server has closed connection. File:[{0}]".ErrorLognConsole(localPath);
@@ -1325,7 +1363,9 @@ namespace RVMCore.GoogleWarpper
                                 return await this.UploadResumableAsync(localPath, getUploadID, token, resetEvent, true);
                             //Session has closed by server, restart upload from zero.
                             case 308: //Resume Incomplete
+#if DEBUG
                                 Console.WriteLine("Chunk[{0}/{1}] Success!", byteCnt, sr.Length);
+#endif
                                 string hd = rep.Headers.Get("Range");
                                 if (hd.IsNullOrEmptyOrWhiltSpace())
                                 {
@@ -1351,7 +1391,8 @@ namespace RVMCore.GoogleWarpper
                                     await tmpst.ReadAsync(mmm, 0, mmm.Length);
                                     Encoding.UTF8.GetString(mmm).ErrorLognConsole();
                                 }
-                                "Upload failed! Catch unhandled error! [{1}] File:[{0}]".ErrorLognConsole(localPath, (int)rep.StatusCode);
+                                @"Upload failed! Unhandled result from server : [Code:{1} {2}] File:[{0}]".ErrorLognConsole(localPath, 
+                                    (int)rep.StatusCode, rep.StatusCode.ToString());
                                 CloseFileStream();
                                 return null;
                                 //Other message maybe Errors.
@@ -1373,7 +1414,7 @@ namespace RVMCore.GoogleWarpper
                                 if (SpeedControl.ElapsedMilliseconds < 1000)
                                 {
                                     token?.ThrowIfCancellationRequested();
-                                    Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                                    await Task.Delay((int)(1000 - SpeedControl.ElapsedMilliseconds));
                                 }
                                 spdCnt = 0;
                                 SpeedControl.Restart();
@@ -1412,17 +1453,16 @@ namespace RVMCore.GoogleWarpper
                 {
                     "Local Error : [{0}]".ErrorLognConsole(ex.Message);
                     return null;
-                }
-
-
+                }                
             }
-            //FilesResource.ListRequest request = Service.Files.List();
-            //request.Q = string.Format("'{0}' in parents and name contains '{1}'", GetGoogleFolderByPath(remotePath).Id, System.IO.Path.GetFileName(localPath).CheckStringForQuerry());
-            //FileList result = await request.ExecuteAsync();
-            //if (result.Files.Count > 0)
-            //    return result.Files[0];
             return null;
         }
+
+        //public async Task<string> TestUploadAysnc(string localPath, Func<bool, string> getUploadID,
+        //    CancellationToken? token, ManualResetEvent resetEvent, bool isErrorReCall)
+        //{
+
+        //}
 
         /// <summary>
         /// Generate an URI for upload a file to google drive.
@@ -1700,7 +1740,7 @@ namespace RVMCore.GoogleWarpper
                     {
                         if (SpeedControl.ElapsedMilliseconds < 1000)
                         {
-                            Thread.Sleep((int)(1000 - SpeedControl.ElapsedMilliseconds));
+                            Task.Delay((int)(1000 - SpeedControl.ElapsedMilliseconds));
                         }
                         spdCnt = 0;
                         SpeedControl.Restart();
@@ -1933,47 +1973,6 @@ namespace RVMCore.GoogleWarpper
                     }
                     return BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant();
                 }
-            }
-        }
-
-        /// <summary>
-        /// Read *.upload file and return the upload token.
-        /// </summary>
-        /// <param name="localPath">file to upload.</param>
-        private static string GetUploadUriByLocalFile(string localPath)
-        {
-            using (System.IO.StreamReader uriRD = new System.IO.StreamReader(GetUploadStatusPath(localPath)))
-                return uriRD.ReadToEnd();
-        }
-
-        /// <summary>
-        /// Read a chunk of data from local file.
-        /// </summary>
-        /// <param name="buffer">buffer</param>
-        /// <param name="filePath">file to read</param>
-        /// <param name="start">start position.</param>
-        /// <param name="length">read length.</param>
-        /// <param name="exception">if an error occors this will be the error.</param>
-        private static bool ReadChunk(out byte[] buffer,string filePath, long start, int length,out Exception exception)
-        {
-            exception = null;
-            try
-            {
-                using(System.IO.FileStream sr = new System.IO.FileStream(filePath,
-                    System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read))
-                {
-                    sr.Seek(start, System.IO.SeekOrigin.Begin);
-
-                    buffer = new byte[length];
-                    sr.Read(buffer, 0, length);
-                    return true;
-                }
-            }
-            catch(Exception ex)
-            {
-                exception = ex;
-                buffer = null;
-                return false;
             }
         }
         

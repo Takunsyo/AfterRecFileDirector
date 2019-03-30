@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -268,65 +267,65 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="cancelToken">A token to stop record operation can be provide by <see cref="CancellationTokenSource"/>.</param>
         /// <param name="decode"></param>
         /// <param name="priority"></param>
-        /// <returns>A <see cref="Thread"/> can be started.</returns>
-        public Thread StreamProgramToFile(long programId, string path, CancellationToken cancelToken,
+        /// <returns>A <see cref="Task"/> can be started.</returns>
+        public async void StreamProgramToFile(long programId, string path, CancellationToken cancelToken,
                                      int? decode = null, StreamPriority priority = StreamPriority.Default)
         {
-            var workLoad = new ThreadStart(new Action(() => {
-                if (System.IO.File.Exists(path)) return;
-                var ub = new UriBuilder(ServiceAddr.ToString() + string.Format("api/programs/{0}/stream", programId.ToString()));
-                var query = HttpUtility.ParseQueryString(ub.Query);
-                if (decode != null) query["decode"] = decode.ToString();
-                ub.Query = query.ToString();
-                var req = InitWebRequest(ub.ToString());
-                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
-                var rep = GettingResponse(ref req);
-                if (rep == null) return;
-                switch ((int)rep.StatusCode)
-                {
-                    case 200:
-                        using (var writer = new System.IO.FileStream(path, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite))
+            if (System.IO.File.Exists(path)) return;
+            var ub = new UriBuilder(ServiceAddr.ToString() + string.Format("api/programs/{0}/stream", programId.ToString()));
+            var query = HttpUtility.ParseQueryString(ub.Query);
+            if (decode != null) query["decode"] = decode.ToString();
+            ub.Query = query.ToString();
+            var req = InitWebRequest(ub.ToString());
+            req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
+            var rep = GettingResponse(ref req);
+            if (rep == null) return;
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    using (var writer = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite,FileShare.Read))
+                    {
+                        using (var input = rep.GetResponseStream())
                         {
-                            using (var input = rep.GetResponseStream())
+                            byte[] buffer = new byte[188 * 100];
+                            int bytesRead;
+                            try
                             {
-                                byte[] buffer = new byte[188 * 100];
-                                int bytesRead;
-                                try
+                                while ((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
                                 {
-                                    while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                                    {
-                                        writer.Write(buffer, 0, bytesRead);
-                                        cancelToken.ThrowIfCancellationRequested();
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    Console.WriteLine("Operation canceled!");
-                                }
-                                catch (Exception e)
-                                {
-                                    e.Message.ErrorLognConsole();
+                                    writer.Write(buffer, 0, bytesRead);
+                                    cancelToken.ThrowIfCancellationRequested();
+                                    writer.Flush();
+                                    input.Flush();
                                 }
                             }
+                            catch (OperationCanceledException)
+                            {
+                                Console.WriteLine("Operation canceled!");
+                            }
+                            catch (Exception e)
+                            {
+                                e.Message.ErrorLognConsole();
+                            }
                         }
-                        break;
-                    //Write to file.
-                    case 404:
-                        "cannot find chanel. Code:404".ErrorLognConsole();
-                        break;
-                    case 503:
-                        "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
-                        break;
-                    default:
-                        var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
-                        var json = JsonConvert.DeserializeObject<@default>(mbody);
-                        "Failed to get program stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
-                        break;
-                }
-                req.Abort(); rep.Close();
-            }));
-            return new Thread(workLoad);
+                    }
+                    break;
+                //Write to file.
+                case 404:
+                    "cannot find chanel. Code:404".ErrorLognConsole();
+                    break;
+                case 503:
+                    "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
+                    break;
+                default:
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to get program stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    break;
+            }
+            req.Abort(); rep.Close();
         }
+
         /// <summary>
         /// Get a path can provide stream service from Mirakurun server.
         /// <para>Mirakurun API: "GET /programs/{id}/stream"</para>
@@ -485,71 +484,71 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="decode"></param>
         /// <param name="priority"></param>
         /// <returns>A <see cref="Thread"/> can be started.</returns>
-        public Thread StreamChannelToFile(ChannelType type, int cannelId , string path, CancellationToken cancelToken,
-                                            long? serviceID = null, int? decode = null, StreamPriority priority = StreamPriority.Default)
+        public async void StreamChannelToFile(ChannelType type, int cannelId , string path, CancellationToken cancelToken,
+                                            long? serviceID = null, int? decode = null, StreamPriority priority = StreamPriority.Default)           
         {
-            var workLoad = new ThreadStart(new Action(() => {
-                if (System.IO.File.Exists(path)) return;
-                string qPath;
-                if(serviceID == null)
-                {
-                    qPath = string.Format("api/channels/{0}/{1}/stream", type.ToString(), cannelId.ToString());
-                }
-                else
-                {
-                    qPath = string.Format("api/channels/{0}/{1}/services/{2}/stream", type.ToString(), cannelId.ToString(),serviceID.ToString());
-                }
-                var ub = new UriBuilder(ServiceAddr.ToString() + qPath);
-                var query = HttpUtility.ParseQueryString(ub.Query);
-                if(decode != null)query["decode"] = decode.ToString();
-                ub.Query = query.ToString();
-                var req = InitWebRequest(ub.ToString());
-                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
-                var rep = GettingResponse(ref req);
-                if (rep == null) return;
-                switch ((int)rep.StatusCode)
-                {
-                    case 200:
-                        using(var writer = new System.IO.FileStream(path, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite))
+            if (System.IO.File.Exists(path)) return;
+            string qPath;
+            if(serviceID == null)
+            {
+                qPath = string.Format("api/channels/{0}/{1}/stream", type.ToString(), cannelId.ToString());
+            }
+            else
+            {
+                qPath = string.Format("api/channels/{0}/{1}/services/{2}/stream", type.ToString(), 
+                    cannelId.ToString(),serviceID.ToString());
+            }
+            var ub = new UriBuilder(ServiceAddr.ToString() + qPath);
+            var query = HttpUtility.ParseQueryString(ub.Query);
+            if(decode != null)query["decode"] = decode.ToString();
+            ub.Query = query.ToString();
+            var req = InitWebRequest(ub.ToString());
+            req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
+            var rep = GettingResponse(ref req);
+            if (rep == null) return;
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    using(var writer = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite,FileShare.Read))
+                    {
+                        using(var input = rep.GetResponseStream())
                         {
-                            using(var input = rep.GetResponseStream())
-                            {
-                                byte[] buffer = new byte[188*100];
-                                int bytesRead;
-                                try { 
-                                    while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                                    {
-                                        writer.Write(buffer, 0, bytesRead);
-                                        cancelToken.ThrowIfCancellationRequested();
-                                    }
-                                }
-                                catch (OperationCanceledException)
+                            byte[] buffer = new byte[188*100];
+                            int bytesRead;
+                            try { 
+                                while ((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
                                 {
-                                    Console.WriteLine("Operation canceled!");
-                                }
-                                catch(Exception e)
-                                {
-                                    e.Message.ErrorLognConsole();
+                                    await writer.WriteAsync(buffer, 0, bytesRead);
+                                    cancelToken.ThrowIfCancellationRequested();
+                                input.Flush();
+                                writer.Flush();
                                 }
                             }
+                            catch (OperationCanceledException)
+                            {
+                                Console.WriteLine("Operation canceled!");
+                            }
+                            catch(Exception e)
+                            {
+                                e.Message.ErrorLognConsole();
+                            }
                         }
-                        break;
-                    //Write to file.
-                    case 404:
-                        "cannot find chanel. Code:404".ErrorLognConsole();
-                        break;
-                    case 503:
-                        "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
-                        break;
-                    default:
-                        var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
-                        var json = JsonConvert.DeserializeObject<@default>(mbody);
-                        "Failed to get channel stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
-                        break;
-                }
-                req.Abort(); rep.Close();
-            }));
-            return new Thread(workLoad);
+                    }
+                    break;
+                //Write to file.
+                case 404:
+                    "cannot find chanel. Code:404".ErrorLognConsole();
+                    break;
+                case 503:
+                    "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
+                    break;
+                default:
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to get channel stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    break;
+            }
+            req.Abort(); rep.Close();
         }
 
         /// <summary>
@@ -812,7 +811,7 @@ namespace RVMCore.MirakurunWarpper
         /// <summary>
         /// Show if is event informations being watched.
         /// </summary>
-        public bool IsEventSubscribed => eventSubscribeThread?.IsAlive ?? false;
+        public bool IsEventSubscribed => eventSubscribeStateChecker?.WaitOne(0) ?? false;
         /// <summary>
         /// Current watching event's type.
         /// </summary>
@@ -821,8 +820,8 @@ namespace RVMCore.MirakurunWarpper
         /// Current watching event's resource type.
         /// </summary>
         public ResourceType? SubscribedResourceType { get; private set; } = null;
-        private Thread eventSubscribeThread;
         private CancellationTokenSource eventSubscribeCancellationTokenSource;
+        private ManualResetEvent eventSubscribeStateChecker;
         /// <summary>
         /// This event will be raised when event informations from Mirakurun server has been recived.
         /// </summary>
@@ -837,19 +836,18 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="resource"></param>
         public void SubscribeEvents(EventType? type = null,ResourceType? resource = null)
         {
-            if (!(eventSubscribeThread is null) && eventSubscribeThread.IsAlive) return;
-            var workLoad = new ThreadStart(new Action(() => {
-                SubscribeEventsWork(0, type, resource);
-            }));
+            if(eventSubscribeStateChecker is null) eventSubscribeStateChecker = new ManualResetEvent(false);
+            eventSubscribeStateChecker.Reset();
+            eventSubscribeCancellationTokenSource?.Dispose();
             eventSubscribeCancellationTokenSource = new CancellationTokenSource();
-            eventSubscribeThread = new Thread(workLoad);
-            eventSubscribeThread.IsBackground = true;
-            eventSubscribeThread.Start();
+            ThreadPool.QueueUserWorkItem(x => {
+                SubscribeEventsWork(0, type, resource);
+            });
         }
 
         private void SubscribeEventsWork(int SleepTime = 0, EventType? type = null, ResourceType? resource = null)
         {
-            Thread.Sleep(SleepTime);
+            Task.Delay(SleepTime);
             var ub = new UriBuilder(ServiceAddr.ToString() + "api/events/stream");
             var query = HttpUtility.ParseQueryString(ub.Query);
             if (type != null) query["type"] = type.ToString();
@@ -909,7 +907,7 @@ namespace RVMCore.MirakurunWarpper
             }
             SubscribedEventType = null;
             SubscribedResourceType = null;
-
+            eventSubscribeStateChecker.Set();
         }
         /// <summary>
         /// Stop subscribe event informations.
@@ -917,7 +915,6 @@ namespace RVMCore.MirakurunWarpper
         public void StopSubscribeEvents()
         {            
             eventSubscribeCancellationTokenSource?.Cancel();
-            if (eventSubscribeThread?.IsAlive ??false) eventSubscribeThread.Abort();
         }
 
         #endregion
@@ -952,9 +949,9 @@ namespace RVMCore.MirakurunWarpper
         /// <summary>
         /// Show if is log being watched.
         /// </summary>
-        public bool IsLogSubscribed => logSubscribeThread?.IsAlive ?? false;
-        private Thread logSubscribeThread;
+        public bool IsLogSubscribed => logSubscribeStateChecker?.WaitOne(0) ?? false;
         private CancellationTokenSource logSubscribeCancellationTokenSource;
+        private ManualResetEvent logSubscribeStateChecker;
         /// <summary>
         /// This event will be raised when a log has been recived.
         /// </summary>
@@ -966,19 +963,18 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="FailedCallback">Callback delegate in case of failed subscribe.</param>
         public void SubscribeLogs()
         {
-            if (logSubscribeThread?.IsAlive ?? false) return;
-            var workLoad = new ThreadStart(new Action(() => {
+            if(logSubscribeStateChecker is null) logSubscribeStateChecker = new ManualResetEvent(false);
+            logSubscribeStateChecker.Reset();
+            logSubscribeCancellationTokenSource?.Dispose();
+             logSubscribeCancellationTokenSource = new CancellationTokenSource();
+            ThreadPool.QueueUserWorkItem(x => {
                 SubscribeLogsWork();
-            }));
-            logSubscribeCancellationTokenSource = new CancellationTokenSource();
-            logSubscribeThread = new Thread(workLoad);
-            logSubscribeThread.IsBackground = true;
-            logSubscribeThread.Start();
+            });
         }
 
         private void SubscribeLogsWork(int SleepTime=0)
         {
-            Thread.Sleep(SleepTime);
+            Task.Delay(SleepTime);
             var ub = new Uri(ServiceAddr, "api/log/stream");
             var req = InitWebRequest(ub);
             req.Timeout = Timeout.Infinite;
@@ -1023,6 +1019,7 @@ namespace RVMCore.MirakurunWarpper
                     SubscribeLogsWork(3000);
                     break;
             }
+            logSubscribeStateChecker.Set();
         }
 
         /// <summary>
@@ -1031,7 +1028,6 @@ namespace RVMCore.MirakurunWarpper
         public void StopSubscribeLogs()
         {
             logSubscribeCancellationTokenSource?.Cancel();
-            if (logSubscribeThread?.IsAlive ?? false) logSubscribeThread.Abort();
         }
         #endregion
 
@@ -1113,63 +1109,63 @@ namespace RVMCore.MirakurunWarpper
         /// <param name="decode"></param>
         /// <param name="priority"></param>
         /// <returns>A <see cref="Thread"/> can be started.</returns>
-        public Thread StreamServiceToFile(long serviceId, string path, CancellationToken cancelToken,
+        public async Task StreamServiceToFile(long serviceId, string path, CancellationToken cancelToken,
                              int? decode = null, StreamPriority priority = StreamPriority.Default)
         {
-            var workLoad = new ThreadStart(new Action(() => {
-                if (System.IO.File.Exists(path)) return;
-                var ub = new UriBuilder(ServiceAddr.ToString() + string.Format("api/services/{0}/stream", serviceId.ToString()));
-                var query = HttpUtility.ParseQueryString(ub.Query);
-                if (decode != null) query["decode"] = decode.ToString();
-                ub.Query = query.ToString();
-                var req = InitWebRequest(ub.ToString());
-                req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
-                var rep = GettingResponse(ref req);
-                if (rep == null) return;
-                switch ((int)rep.StatusCode)
-                {
-                    case 200:
-                        using (var writer = new System.IO.FileStream(path, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite))
+            if (File.Exists(path)) return;
+            var ub = new UriBuilder(ServiceAddr.ToString() + string.Format("api/services/{0}/stream", serviceId.ToString()));
+            var query = HttpUtility.ParseQueryString(ub.Query);
+            if (decode != null) query["decode"] = decode.ToString();
+            ub.Query = query.ToString();
+            var req = InitWebRequest(ub.ToString());
+            req.Headers.Add("X-Mirakurun-Priority", ((int)priority).ToString());
+            var rep = GettingResponse(ref req);
+            if (rep == null) return;
+            switch ((int)rep.StatusCode)
+            {
+                case 200:
+                    using (var writer = new FileStream(path, FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read))
+                    {
+                        using (var input = rep.GetResponseStream())
                         {
-                            using (var input = rep.GetResponseStream())
+                            byte[] buffer = new byte[188 * 100];
+                            int bytesRead;
+                            try
                             {
-                                byte[] buffer = new byte[188 * 100];
-                                int bytesRead;
-                                try
+                                while ((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
                                 {
-                                    while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                                    {
-                                        writer.Write(buffer, 0, bytesRead);
-                                        cancelToken.ThrowIfCancellationRequested();
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    Console.WriteLine("Operation canceled!");
-                                }
-                                catch (Exception e)
-                                {
-                                    e.Message.ErrorLognConsole();
+                                    await writer.WriteAsync(buffer, 0, bytesRead);
+                                    cancelToken.ThrowIfCancellationRequested();
+                                    writer.Flush();
+                                    input.Flush();
                                 }
                             }
+                            catch (OperationCanceledException)
+                            {
+                                Console.WriteLine("Operation canceled!");
+                            }
+                            catch (Exception e)
+                            {
+                                e.Message.ErrorLognConsole();
+                            }
                         }
-                        break;
-                    //Write to file.
-                    case 404:
-                        "cannot find chanel. Code:404".ErrorLognConsole();
-                        break;
-                    case 503:
-                        "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
-                        break;
-                    default:
-                        var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
-                        var json = JsonConvert.DeserializeObject<@default>(mbody);
-                        "Failed to get stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
-                        break;
-                }
-                req.Abort(); rep.Close();
-            }));
-            return new Thread(workLoad);
+                    }
+                    Console.WriteLine("Finshed to stream");
+                    break;
+                //Write to file.
+                case 404:
+                    "cannot find chanel. Code:404".ErrorLognConsole();
+                    break;
+                case 503:
+                    "Tuner Resource Unavailable. Code:503".ErrorLognConsole();
+                    break;
+                default:
+                    var mbody = GetResponseBodyString(ref rep, Encoding.UTF8, true);
+                    var json = JsonConvert.DeserializeObject<@default>(mbody);
+                    "Failed to get stream! [{0}] reason: {1}".ErrorLognConsole(json.code, json.reason);
+                    break;
+            }
+            req.Abort(); rep.Close();
         }
         /// <summary>
         /// Get a path can provide stream service from Mirakurun server.
@@ -1506,10 +1502,13 @@ namespace RVMCore.MirakurunWarpper
         public void Dispose()
         {
             //if (this.IsDisposed) return; //Redo dispose make no hurts, let them do it.
-            if (eventSubscribeThread?.IsAlive ?? false) eventSubscribeThread.Abort();
+            eventSubscribeCancellationTokenSource?.Cancel();
             eventSubscribeCancellationTokenSource?.Dispose();
-            if (logSubscribeThread?.IsAlive ?? false) logSubscribeThread.Abort();
+            eventSubscribeStateChecker?.Dispose();
+
+            logSubscribeCancellationTokenSource?.Cancel();
             logSubscribeCancellationTokenSource?.Dispose();
+            
             IsDisposed = true;
         }
         #endregion

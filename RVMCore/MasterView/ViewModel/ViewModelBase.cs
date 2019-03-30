@@ -23,7 +23,7 @@ namespace RVMCore.MasterView
         }
         [Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", true)]
         public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        [Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", false)]
+        //[Obsolete("This method is no longer in use due to implementation of INotifyPropertyChanged.Fody namespace.", false)]
         public void NotifyPropertyChanged([CallerMemberName] String propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

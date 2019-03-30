@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.ServiceProcess;
-using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
@@ -168,7 +165,7 @@ namespace TVRecLiveService
         {
             System.Threading.ThreadStart hdl = new System.Threading.ThreadStart(() =>
             {
-                System.Threading.Thread.Sleep(this.WaitTime);
+                Task.Delay(WaitTime);
                 try
                 { //try find if there is a process allready running.
                     string exeName = System.IO.Path.GetFileNameWithoutExtension(this.TVRockPath);
@@ -217,7 +214,7 @@ namespace TVRecLiveService
         {
             System.Threading.ThreadStart hdl = new System.Threading.ThreadStart(() =>
             {
-                System.Threading.Thread.Sleep(this.WaitTime);
+                Task.Delay(this.WaitTime);
                 try
                 {
                     string exeName = System.IO.Path.GetFileNameWithoutExtension(this.SpinelPath);

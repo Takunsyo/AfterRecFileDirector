@@ -41,14 +41,9 @@ namespace RVMCore.MasterView.ViewModel
             Setting = SettingObj.Read();
             _mainTable = new DataSet();
             if (Setting.DataBase != "mysql") throw new InvalidOperationException("Database type is unsupported!");
-            var work = new System.Threading.Thread(
-                new System.Threading.ThreadStart(
-                    new Action(() => {
-                        database = new Database(Setting.DataBase_Addr, Setting.DataBase_User, Setting.DataBase_Pw, Setting.DataBase_Port ?? 3306);
-                        IsReady = true;
-                        })));
-            work.IsBackground = true;
-            work.Start();
+            System.Threading.ThreadPool.QueueUserWorkItem(x=> {
+            database = new Database(Setting.DataBase_Addr, Setting.DataBase_User, Setting.DataBase_Pw, Setting.DataBase_Port ?? 3306);
+                        IsReady = true;});
         }
 
         private void LoadAction(object x)
@@ -146,8 +141,26 @@ namespace RVMCore.MasterView.ViewModel
         }
 
         public ICommand RemoveLineCommand => new CustomCommand(RemoveLine);
-    }
 
+        private void PopEditDialog(object x)
+        {
+            if (this.SelectedItem is null) return;
+            var data = this.SelectedItem as DataRowView;
+            if (data is null) return;
+            var id = data.Row.Field<string>("id");
+            var name = data.Row.Field<string>("name");
+            var path = data.Row.Field<string>("path");
+            var time = (long)data.Row.Field<UInt64>("time");
+            var iupl =data.Row.Field<byte>("isuploaded") ==1;
+            var visa = data.Row.Field<byte>("showonuploader") ==1;
+            if(DBItemChange.ShowDialog(id,name,path,time,iupl,visa, this.database) ?? false)
+            {
+                this.LoadAction(null);
+            }
+        }
+        public ICommand EditItemCommand => new CustomCommand(PopEditDialog);
+    }
+    [ValueConversion(typeof(bool), typeof(Visibility))]
     public class BoolToVisConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -161,6 +174,7 @@ namespace RVMCore.MasterView.ViewModel
         }
     }
 
+    [ValueConversion(typeof(long), typeof(string))]
     public class LongToTimeConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -202,5 +216,30 @@ namespace RVMCore.MasterView.ViewModel
         {
             throw new NotImplementedException();
         }
+    }
+
+    [ValueConversion(typeof(bool), typeof(bool))]
+    public class InverseBooleanConverter : IValueConverter
+    {
+        #region IValueConverter Members
+
+        public object Convert(object value, Type targetType, object parameter,
+            CultureInfo culture)
+        {
+            if (targetType != typeof(bool) && targetType != typeof(bool?))
+                throw new InvalidOperationException("The target must be a boolean");
+
+            return !(bool)(value ?? true);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter,
+            CultureInfo culture)
+        {
+            if (targetType != typeof(bool) && targetType != typeof(bool?))
+                throw new InvalidOperationException("The target must be a boolean");
+
+            return !(bool)(value ?? false);
+        }
+        #endregion
     }
 }

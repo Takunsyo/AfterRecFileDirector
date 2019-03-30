@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -17,30 +18,13 @@ namespace RVMCore.MasterView
         private MirakurunWarpper.MirakurunService mMirakurun;
         private EPGStationWarpper.EPGAccess mEPGAccess;
         private SettingObj setting;
-        //private System.Windows.Controls.ContextMenu mMenu;
-        //Halt ro prevent app to exit.
-        //private Thread Halt = new Thread(new ThreadStart(() => { Thread.Sleep(Timeout.Infinite); }));
-
-        //Premade menu items for item container.
 
         #region properties
 
-        private bool _IsWorking = false;
+        private List<bool> _IsWorking = new List<bool>();
         private bool IsWorking
         {
-            get => _IsWorking;
-            set
-            {
-                _IsWorking = value;
-                if (value)
-                {
-                    //TaskBarIcon.Icon = Properties.Resources.NotifyTrayWorking;
-                }
-                else
-                {
-                    //TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
-                }
-            }
+            get => _IsWorking.Any(x => x==true);
         }
         #endregion
 
@@ -67,8 +51,11 @@ namespace RVMCore.MasterView
             this.DataContext = this;
             this.TaskBarIcon.DataContext = this;
             //TaskBarIcon.Icon = Properties.Resources.NotifyTrayNormal;
-            InitializeMirakurun();
-            InitializeEPGStation();
+            ThreadPool.QueueUserWorkItem(x =>
+            { //It's betterr do this at another thread.
+                InitializeMirakurun();
+                InitializeEPGStation();
+            });
             this.Uploader = new UploaderViewModel();
         }
 
@@ -156,58 +143,52 @@ namespace RVMCore.MasterView
 
         public void InitializeMirakurun()
         {
-            var work = new Thread(new ThreadStart(() => {
-
-                //init mirakurun
-                void InitService()
+            void InitService()
+            {
+                try
                 {
-                    try
+                    mMirakurun = new MirakurunWarpper.MirakurunService(setting);
+                }
+                catch (Exception e)
+                {
+                    if (MessageBox.Show("Mirakurun server address setting is not correct. " +
+                        $"\n {e.Message} \n" +
+                        "\nPlease make sure Mirakurun is accessible directly from this operating PC." +
+                        "\n\nDo you want to open setting dialog now?", "Setting Error", MessageBoxButton.YesNo, MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
                     {
-                        mMirakurun = new MirakurunWarpper.MirakurunService(setting);
-                    }
-                    catch(Exception e)
-                    {
-                        if (MessageBox.Show("Mirakurun server address setting is not correct. " +
-                            $"\n {e.Message} \n"+
-                            "\nPlease make sure Mirakurun is accessible directly from this operating PC." +
-                            "\n\nDo you want to open setting dialog now?", "Setting Error", MessageBoxButton.YesNo, MessageBoxImage.Exclamation) == MessageBoxResult.Yes)
+                        var dialog = new Setting();
+                        if (dialog.ShowDialog() ?? false)
                         {
-                            var dialog = new Setting();
-                            if(dialog.ShowDialog()?? false)
-                            {
-                                setting = SettingObj.Read();
-                                InitService();
-                            }
+                            setting = SettingObj.Read();
+                            InitService();
                         }
                     }
                 }
-                InitService();
-                if (mMirakurun is null) return;
-                InitTunerView();
-                mMirakurun.EventRecived += MMirakurun_EventRecived;                
-                mMirakurun.SubscribeEvents(null,MirakurunWarpper.Apis.ResourceType.tuner);
-            }));
-            void InitTunerView()
-            {
-                var tmp = mMirakurun.GetTuners();
-                var locker = new object();
-                this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
-                BindingOperations.EnableCollectionSynchronization(this.Tuners, locker);
-                this.Execute(() => {
-                    this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
-                    foreach (var i in tmp)
-                    {
-                        Tuners.Add(i);
-                    }
-                });
             }
-            work.Start();
+            InitService();
+            if (mMirakurun is null) return;
+            //Init tuner elements.
+            var tmp = mMirakurun.GetTuners();
+            var locker = new object();
+            this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
+            BindingOperations.EnableCollectionSynchronization(this.Tuners, locker);
+            this.Execute(() => {
+                this.Tuners = new ObservableCollection<MirakurunWarpper.Apis.Tuner>();
+                this._IsWorking = new List<bool>();
+                foreach (var i in tmp)
+                {
+                    Tuners.Add(i);
+                    this._IsWorking.Add(false);
+                }
+            });
+            mMirakurun.EventRecived += MMirakurun_EventRecived;                
+            mMirakurun.SubscribeEvents(null,MirakurunWarpper.Apis.ResourceType.tuner);
         }
         //Call back methods
         private void EventFailedCallback(object sender)
         {
             var serv = (MirakurunWarpper.MirakurunService)sender;
-            Thread.Sleep(3000);
+            Task.Delay(3000);
             //serv.SubscribeEvents(EventFailedCallback);
         }
         //Recived Events.
@@ -220,7 +201,11 @@ namespace RVMCore.MasterView
                     var index = Tuners.IndexOf(Tuners.First(x => x.name == evtTuner.name));
                     var locker = new object();
                     BindingOperations.EnableCollectionSynchronization(this.Tuners, locker);
-                    this.Execute(() => { Tuners[index] = evtTuner; });
+                    this.Execute(() => {
+                        Tuners[index] = evtTuner;
+                        _IsWorking[index] = !evtTuner.isFree;
+                        NotifyPropertyChanged(nameof(this.IsWorking));
+                    });
                     break;
                 case MirakurunWarpper.Apis.ResourceType.service:
 
@@ -256,7 +241,7 @@ namespace RVMCore.MasterView
         /// <summary>
         /// Main reserve update timer, for server com control.
         /// </summary>
-        private System.Timers.Timer EPGUpdateTimer;
+        private Timer EPGUpdateTimer;
         /// <summary>
         /// all reserves under recording.
         /// </summary>
@@ -288,25 +273,14 @@ namespace RVMCore.MasterView
                     }
                 }
             }
-
+            
             InitService();
             if (mEPGAccess is null) return;
-            var work = new Thread(new ThreadStart(() => {
-                EPGUpdateTimer = new System.Timers.Timer
-                {
-                    AutoReset = true,
-                    Interval = 10 * 1000
-                };
-                EPGUpdateTimer.Elapsed += EPGUpdate;
-                EPGUpdateTimer.Start();
-                EPGView.EPGchannels = new List<EPGStationWarpper.Api.EPGchannel>(mEPGAccess.GetChannels());
-            }));
-            work.Start();
-
-
+            EPGUpdateTimer = new Timer(EPGUpdate,null, 10, 10 * 1000);
+            EPGView.EPGchannels = new List<EPGStationWarpper.Api.EPGchannel>(mEPGAccess.GetChannels());
         }
 
-        private void EPGUpdate(object sender, System.Timers.ElapsedEventArgs e)
+        private void EPGUpdate(object objX)
         {
             Getschedule();
             NotifyPropertyChanged(nameof(EpgReserveList));
@@ -365,7 +339,7 @@ namespace RVMCore.MasterView
             /// <summary>
             /// Secondary timer for reserve inner data update.
             /// </summary>
-            private System.Timers.Timer EPGInnerUpdateTimer;
+            private Timer EPGInnerUpdateTimer;
             public EPGView(EPGStationWarpper.Api.Reserve reserve,bool start_timer = false)
             {
                 this.body = reserve;
@@ -374,20 +348,14 @@ namespace RVMCore.MasterView
 
                 if (start_timer)
                 {
-                    EPGInnerUpdateTimer = new System.Timers.Timer
-                    {
-                        Interval = 100,
-                        AutoReset = true
-                    };
-                    EPGInnerUpdateTimer.Elapsed += Timer_Elapsed;
-                    EPGInnerUpdateTimer.Start();
+                    EPGInnerUpdateTimer = new Timer(Timer_Elapsed, null, 0, 500);
                 }
             }
 
             private long startAt;
             private long endAt;
 
-            public void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+            public void Timer_Elapsed(object x)
             {
                 var tnow = MirakurunWarpper.MirakurunService.GetUNIXTimeStamp();
                 if (tnow < body.program.startAt) return;

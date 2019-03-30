@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
 using System.Text;
 using System.Windows.Forms;
-using Microsoft.VisualBasic;
 using System.Reflection;
 
 namespace AfterRecFileDirector
@@ -180,7 +177,7 @@ namespace AfterRecFileDirector
                 {
                     Console.WriteLine("Error : {0}", ex.Message);
                     Console.WriteLine("Sleep 10 sec...");
-                    System.Threading.Thread.Sleep(10000);
+                    System.Threading.Tasks.Task.Delay(10000);
                 }
             }
             // TestCodes()
@@ -237,7 +234,7 @@ namespace AfterRecFileDirector
                     {
                         Console.WriteLine("Check file exitens \"{0}\" Attempt {1} time.", mpath, i.ToString());
                         if (i == 2) { doit = true; break; }
-                        System.Threading.Thread.Sleep(500);
+                        System.Threading.Tasks.Task.Delay(500);
                     }
                     else
                     {

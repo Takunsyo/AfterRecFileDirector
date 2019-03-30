@@ -69,17 +69,7 @@ namespace RVMCore.MasterView
         private PipeServer<RmtFile> midObject;
 
         private Database mDatabase;
-        public bool IsWorking
-        {
-            get
-            {
-                if (mThread != null && mThread.IsAlive)
-                {
-                    return true;
-                }
-                else return false;
-            }
-        }
+        public bool IsWorking => !this.MasterUploadStatusWatcher.WaitOne(0);
 
         private System.Threading.Timer DBTimer;
 
@@ -101,10 +91,42 @@ namespace RVMCore.MasterView
             {
                 var locker = new object();
                 BindingOperations.EnableCollectionSynchronization(this.FileList, locker);
-                foreach (var item in this.mDatabase.LoadData())
+                var rmlist = this.mDatabase.LoadData().ToList();
+                foreach (var item in rmlist)
                 {
-                    if (!FileList.Any(x => x.ID == item.ID)) this.Execute(() => FileList.Add(new UploadFile(item, mDatabase)));
+                    UploadFile hit = null;
+                    try
+                    {
+                        hit = FileList.Where(x => x.ID == item.ID).First();
+                    }
+                    catch { };
+                    if (hit is null)
+                    {
+                        try
+                        {
+                            var mf = new UploadFile(item, mDatabase);
+                            this.Execute(() => FileList.Add(mf));
+                        }
+                        catch
+                        {
+                            $"[{item.ID}] [{item.FullFilePath}] ERROR, FILE　NOT EXIST!".ErrorLognConsole();
+                        }
+                    }
+                    else
+                    {
+                        hit.UpdateFile(item.FullFilePath);                        
+                    }
                 }
+                List<UploadFile> mlist = new List<UploadFile>();
+                foreach(var item in FileList)
+                {
+                    if(!item.IsOver && !rmlist.Any(y => item.ID == y.ID))
+                    {
+                        mlist.Add(item);
+                    }
+                }
+                foreach(var item in mlist)
+                    this.Execute(() => FileList.Remove(item));
                 BindingOperations.DisableCollectionSynchronization(this.FileList);
                 FileList.ForEach(x => x.RefreshData());
                 this.TotalLength = FileList.Sum(x => x.Length);
@@ -112,6 +134,7 @@ namespace RVMCore.MasterView
             }
             catch
             {
+                Console.WriteLine("OOPS! DB not good!");
                 return;
             }
         }
@@ -122,71 +145,94 @@ namespace RVMCore.MasterView
             midObject = new PipeServer<RmtFile>("RVMCoreUploader");
             midObject.PipeMessage += midObjectFileRecivedHdlr;
             if(!midObject.StartListen())MessageBox.Show("Unable to dig pip holes.", "Error",  MessageBoxButtons.OK);
-            DBTimer = new System.Threading.Timer(this.DBOperator,null,1000, 180000);
-            //Define uploading thread workload 
-            this.UploadWorkload = new ThreadStart(() =>
-            {
-                do
-                 {
-                    ThreadControlName = "Pause";
-                    this.mUpObj = null;
-                     try
-                     {
-                         this.mUpObj = FileList.First(x => !x.IsOver);
-                     }
-                     catch(Exception ex )
-                     {
-                        ex.Message.InfoLognConsole();
-                    }
-                    if (this.mUpObj is null) break;
-                    this.mUpObj.RefreshData();
-                    string remot = this.mUpObj.RemotePath;
-                    MainName = "[Uploading]" + this.mUpObj.FileName;
-                    NowProcressingContent = this.mUpObj;
-                    ProcessNow.SetValue(0, 0, "Initialize upload (MD5 File Checking...)");
-                    ProcessNowState = true;
-                    bool isSuccess = false;
-                    if (!System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.mUpObj)))
-                    {   //if this is the first time this file is being upload.
-                        if (!(bool)Service.RemoteFileExists(this.mUpObj, remot,false))
-                        {
-                            ProcessNowState = false;
-                            if (this.mUpObj.IsChangeFather)
-                            {
-                                Google.Apis.Drive.v3.Data.File parent;
-                                string nowParentName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(this.mUpObj.FullPath));
-                                string remotePath = this.mUpObj.RemotePath.Replace(nowParentName, this.mUpObj.OldFatherPath);
-                                if (!remotePath.IsNullOrEmptyOrWhiltSpace())
-                                {
-                                    parent = Service.GetGoogleFolderByPath(remotePath);
-                                    Service.UpdateFile(parent.Id, nowParentName);
-                                }
-                            }
-                            isSuccess = this.mUpObj.Upload(Service);
-                        }
-                        else
-                        {
-                            ProcessNowState = false;
-                            isSuccess = true;
-                        }
-                    }
-                    else
-                    { //if this is a resume upload.
-                        ProcessNowState = false;
-                        isSuccess = this.mUpObj.Upload(Service);
-                    }
-                    if (UploadTokenSource?.Token.IsCancellationRequested ?? false) break;
-                    Processed += this.mUpObj.Length;
-                    ProcessNow.SetValue(0, 0, "Done.");
-                    this.mUpObj.IsOver = isSuccess;
-                } while (true);
-                ThreadControlName = "Start";
-            });
-            this.mThread = new Thread(UploadWorkload);
-            mThread.IsBackground = true;
             Service = new GoogleDrive();
             FileList = new ObservableCollection<UploadFile>();
             Service.UpdateProgressChanged += new UpdateProgress(mProcessHandller);
+            DBTimer = new System.Threading.Timer(this.DBOperator, null, 1000, 180000);
+            //Define uploading thread workload 
+            this.MasterUploadStatusWatcher = new ManualResetEvent(true);
+            NotifyPropertyChanged(nameof(this.IsWorking));
+        }
+
+        private void UploadLogic()
+        {
+            try
+            {
+                do
+                {
+                    UploadTokenSource?.Token.ThrowIfCancellationRequested();
+                    ThreadControlName = "Pause";
+                    this.mUpObj = null;
+                    try
+                    {
+                        this.mUpObj = FileList.First(x => !x.IsOver);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.Message.InfoLognConsole();
+                    }
+                    if (!(this.mUpObj is null))
+                    { 
+                        this.mUpObj.RefreshData();
+                        string remot = this.mUpObj.RemotePath;
+                        MainName = "[Uploading]" + this.mUpObj.FileName;
+                        NowProcressingContent = this.mUpObj;
+                        ProcessNow.SetValue(0, 0, "Initialize upload (MD5 File Checking...)");
+                        ProcessNowState = true;
+                        bool isSuccess = false;
+                        bool isFirstTime = (this.mDatabase is null) ? 
+                            !System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.mUpObj)) :
+                            mDatabase.GetFileUploadID(this.mUpObj.ID).IsNullOrEmptyOrWhiltSpace();
+                        if (isFirstTime)
+                        {   //if this is the first time this file is being upload.
+
+                            var tID = Service.RemoteFileExists(this.mUpObj, remot, false);
+                            if (tID.IsNullOrEmptyOrWhiltSpace())
+                            {
+                                ProcessNowState = false;
+                                if (this.mUpObj.IsChangeFather)
+                                {
+                                    Google.Apis.Drive.v3.Data.File parent;
+                                    string nowParentName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(this.mUpObj.FullPath));
+                                    string remotePath = this.mUpObj.RemotePath.Replace(nowParentName, this.mUpObj.OldFatherPath);
+                                    if (!remotePath.IsNullOrEmptyOrWhiltSpace())
+                                    {
+                                        parent = Service.GetGoogleFolderByPath(remotePath);
+                                        Service.UpdateFile(parent.Id, nowParentName);
+                                    }
+                                }
+                                isSuccess = this.mUpObj.Upload(Service);
+                            }
+                            else
+                            {
+                                ProcessNowState = false;
+                                isSuccess = true;
+                                mDatabase.SetUploadStatus(this.mUpObj.ID,tID ,true);
+                            }
+                        }
+                        else
+                        { //if this is a resume upload.
+                            ProcessNowState = false;
+                            isSuccess = this.mUpObj.Upload(Service);
+                        }
+                        if (UploadTokenSource?.Token.IsCancellationRequested ?? false) break;
+                        Processed += this.mUpObj.Length;
+                        this.mUpObj.IsOver = isSuccess;
+                    }
+                    else
+                    {
+                        ProcessNow.SetValue(0, 0, "Done.");
+                        break;
+                    }
+                } while (true);
+            }
+            finally
+            {
+                ThreadControlName = "Start";
+                MasterUploadStatusWatcher.Set();
+                NotifyPropertyChanged(nameof(this.IsWorking));
+                UploadTokenSource?.Dispose();
+            }
         }
 
         private void midObjectFileRecivedHdlr(object sender,RmtFile e)
@@ -214,9 +260,8 @@ namespace RVMCore.MasterView
 
 
         //private:
-        Thread mThread;
-        ThreadStart UploadWorkload;
         CancellationTokenSource UploadTokenSource;
+        ManualResetEvent MasterUploadStatusWatcher;
         public GoogleDrive Service { get; private set; } = null;
 
         private readonly Color PausedColor = Color.FromArgb(0xFF, 0xFF, 0xB9, 0x00);
@@ -263,12 +308,12 @@ namespace RVMCore.MasterView
         public ICommand StartOperationCommand => new CustomCommand(StartOperation);
         private void StartOperation(object sender)
         {
-            if (mThread == null || !mThread.IsAlive)
+            if (!this.IsWorking)
             {
-                UploadTokenSource?.Dispose();
-                mThread = new Thread(UploadWorkload);
                 UploadTokenSource = new CancellationTokenSource();
-                mThread.Start();
+                this.MasterUploadStatusWatcher.Reset(); //So next time resetting this thread will wait.
+                NotifyPropertyChanged(nameof(this.IsWorking));
+                ThreadPool.QueueUserWorkItem(x => this.UploadLogic());
                 return;
             }
             if (this.mUpObj.ThreadState.HasFlag(ThreadState.Unstarted)) return;
@@ -305,8 +350,8 @@ namespace RVMCore.MasterView
                                         MessageBoxIcon.Warning) == DialogResult.Yes)
                     {
                         SelectedItem.Abort();
-                        this.FileList.Remove(this.SelectedItem);
                         this.mDatabase.SetUploadStatus(this.SelectedItem.ID, true, false);
+                        this.FileList.Remove(this.SelectedItem);
                     }
                 }
                 else
@@ -316,9 +361,9 @@ namespace RVMCore.MasterView
                                         "Removing object from list.", 
                                         MessageBoxButtons.YesNo, 
                                         MessageBoxIcon.Warning) == DialogResult.Yes)
-                    { 
+                    {
+                        this.mDatabase.SetUploadStatus(this.SelectedItem.ID, true, this.SelectedItem.IsOver);
                         this.FileList.Remove(this.SelectedItem);
-                        this.mDatabase.SetUploadStatus(this.SelectedItem.ID, true, false);
                     }
                 }
             }
@@ -334,21 +379,37 @@ namespace RVMCore.MasterView
         public ICommand ResetThreadsCommand => new CustomCommand(ResetThreads);
         private void ResetThreads(object sender)
         {
-            if (mThread != null && mThread.IsAlive)
+            if(this.IsWorking)
             {
+                this.UploadTokenSource.Cancel();
                 if (this.mUpObj.IsUploading)
                     this.mUpObj.Abort();
-                //if (mThread.IsAlive) mThread.Abort();
-                UploadTokenSource?.Cancel();
-                mThread.Join();
-                UploadTokenSource?.Dispose();
-                mThread = new Thread(UploadWorkload);
+                this.MasterUploadStatusWatcher.WaitOne();
                 UploadTokenSource = new CancellationTokenSource();
-                mThread.Start();
+                this.MasterUploadStatusWatcher.Reset(); //So next time resetting this thread will wait.
+                ThreadPool.QueueUserWorkItem(x => this.UploadLogic());
+                NotifyPropertyChanged(nameof(this.IsWorking));
                 ProcessStateColor = this.ProcesColor;
                 ThreadControlName = "Pause";
                 return;
             }
+
+        }
+
+        public ICommand StopWorkCommand => new CustomCommand(StopWork);
+        private void StopWork(object sender)
+        {
+            if (this.IsWorking)
+            {
+                this.UploadTokenSource.Cancel();
+                if (this.mUpObj.IsUploading)
+                    this.mUpObj.Abort();
+                this.MasterUploadStatusWatcher.WaitOne();
+                NotifyPropertyChanged(nameof(this.IsWorking));
+                ThreadControlName = "Start";
+                return;
+            }
+
         }
 
         public ICommand UpItemCommand => new CustomCommand(UpItem);
@@ -373,9 +434,14 @@ namespace RVMCore.MasterView
         #region"IDispose"
         public void Dispose()
         {
-            if (mThread!=null && mThread.IsAlive)
+            if (this.MasterUploadStatusWatcher.WaitOne(0))
             {
-                mThread.Abort();
+                this.UploadTokenSource?.Cancel();
+                if (this.mUpObj.IsUploading)
+                    this.mUpObj.Abort();
+                this.MasterUploadStatusWatcher?.WaitOne();
+                UploadTokenSource?.Dispose();
+                MasterUploadStatusWatcher?.Dispose();
             }
             DBTimer.Dispose();
             ((IDisposable)Service).Dispose();

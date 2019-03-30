@@ -36,7 +36,7 @@ namespace RVMCore
                     Console.WriteLine("Error : {0}", ex.Message);
                     "Fail to read settings [{0}]".InfoLognConsole(ex.Message);
                     Console.WriteLine("Sleep 10 sec...");
-                    System.Threading.Thread.Sleep(10000);
+                    System.Threading.Tasks.Task.Delay(10000);
                 }
             }
             EPGAccess mAccess = null;
@@ -425,7 +425,7 @@ namespace RVMCore
                 }
                 catch (Exception ex)
                 {
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Tasks.Task.Delay(1000);
                     ex.Message.ErrorLognConsole();
                 }
             }
@@ -442,7 +442,7 @@ namespace RVMCore
             {
                 "Failed to start upload process [{0}]".ErrorLognConsole(ex.Message);
             }
-            System.Threading.Thread.Sleep(2000);
+            System.Threading.Tasks.Task.Delay(2000);
             counter += 1; //Pass fail to counter. then run from first line.
             Upload(file, counter);
         }
@@ -501,7 +501,7 @@ namespace RVMCore
                 catch (System.IO.IOException)
                 {
                     check = false;
-                    System.Threading.Thread.Sleep(200);
+                    System.Threading.Tasks.Task.Delay(200);
                 }
                 finally
                 {
@@ -530,17 +530,17 @@ namespace RVMCore
                 return;
             // Beep in morse says OK
             Console.Beep(550, 200);
-            System.Threading.Thread.Sleep(20);
+            System.Threading.Tasks.Task.Delay(20);
             Console.Beep(550, 200);
-            System.Threading.Thread.Sleep(20);
+            System.Threading.Tasks.Task.Delay(20);
             Console.Beep(550, 200);
-            System.Threading.Thread.Sleep(50);
+            System.Threading.Tasks.Task.Delay(50);
             Console.Beep(550, 200);
-            System.Threading.Thread.Sleep(20);
+            System.Threading.Tasks.Task.Delay(20);
             Console.Beep(550, 100);
-            System.Threading.Thread.Sleep(10);
+            System.Threading.Tasks.Task.Delay(10);
             Console.Beep(550, 200);
-            System.Threading.Thread.Sleep(20);
+            System.Threading.Tasks.Task.Delay(20);
         }
 
         private static ProgramGenre GetGenre(string gen)

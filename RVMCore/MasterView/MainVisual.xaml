@@ -10,7 +10,20 @@
         DataContext="{Binding RelativeSource={RelativeSource Self}}">
     <!--:NotifyTray="clr-namespace:Hardcodet.Wpf.TaskbarNotification;assembly=Hardcodet.Wpf.TaskbarNotification"-->
     <Grid>
-        <NotifyTray:TaskbarIcon x:Name="TaskBarIcon" ToolTipService.ShowDuration="12000" >
+        <NotifyTray:TaskbarIcon x:Name="TaskBarIcon" ToolTipService.ShowDuration="12000">
+            <NotifyTray:TaskbarIcon.Style>
+                <Style TargetType="NotifyTray:TaskbarIcon">
+                    <Setter Property="IconSource" Value="pack://application:,,,/RVMCore;component/Resources/Normal.ico"/>
+                    <Style.Triggers>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition  Binding="{Binding Path=IsWorking}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="IconSource" Value="pack://application:,,,/RVMCore;component/Resources/Busy.ico"/>
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </NotifyTray:TaskbarIcon.Style>
             <NotifyTray:TaskbarIcon.TrayToolTip>
                 <Border
                     Background="White"
@@ -160,6 +173,5 @@
                 </ContextMenu>
             </NotifyTray:TaskbarIcon.ContextMenu>
         </NotifyTray:TaskbarIcon>
-
     </Grid>
 </Window>

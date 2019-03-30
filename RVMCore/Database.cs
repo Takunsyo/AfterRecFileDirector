@@ -25,7 +25,6 @@ namespace RVMCore
         private string uid { get; }
         private string pwd { get; }
         private int port { get; }
-
         private MySqlConnection baseConnection;
         /* TODO add support for other databases.*/
 
@@ -339,15 +338,17 @@ namespace RVMCore
         public string AddDataItem(string filePath, string name, long time, string oldFolderName) =>
             AddDataItem(filePath, name, time, Guid.NewGuid(),oldFolderName);
 
-        public string AddDataItem(string filePath,string name,long time ,Guid ID, string oldFolderName = null)
+        public string AddDataItem(string filePath, string name, long time, Guid ID, string oldFolderName = null) =>
+            AddDataItem(filePath, name, time, GenerateID(ID), oldFolderName);
+
+        public string AddDataItem(string filePath, string name, long time, string mID, string oldFolderName = null)
         {
             filePath = filePath.Replace(@"\", @"\\").Replace("'", "\\'");
             name = name.Replace("'", "\\'");
             if (!oldFolderName.IsNullOrEmptyOrWhiltSpace()) oldFolderName = oldFolderName.Replace("'", "\\'");
-            string mID = GenerateID(ID);
             var cmd = new MySqlCommand($"INSERT INTO `{TABLE_RECORDED}` " +
-                $"(`id`,  `time`,  `name`,  `path`" + (oldFolderName.IsNullOrEmptyOrWhiltSpace() ? "": ", `initialfoldername`") + ") " +
-                $"VALUES ('{mID}', '{time}', '{name}', '{filePath}'"+ (oldFolderName.IsNullOrEmptyOrWhiltSpace() ? "" : $", '{oldFolderName}'") + ");", baseConnection);
+                $"(`id`,  `time`,  `name`,  `path`" + (oldFolderName.IsNullOrEmptyOrWhiltSpace() ? "" : ", `initialfoldername`") + ") " +
+                $"VALUES ('{mID}', '{time}', '{name}', '{filePath}'" + (oldFolderName.IsNullOrEmptyOrWhiltSpace() ? "" : $", '{oldFolderName}'") + ");", baseConnection);
             try
             {
                 var result = cmd.ExecuteNonQuery();
@@ -515,6 +516,47 @@ namespace RVMCore
             {
                 "Unknow error occured when updating database : {0}".ErrorLognConsole(e.Message);
                 return false;
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
+        }
+
+        public string UpDateFile(string mID, string filePath, string name, long time, string oldFolderName = null)
+        {
+            filePath = filePath.Replace(@"\", @"\\").Replace("'", "\\'");
+            name = name.Replace("'", "\\'");
+            if (!oldFolderName.IsNullOrEmptyOrWhiltSpace()) oldFolderName = oldFolderName.Replace("'", "\\'");
+            var cmd = new MySqlCommand($"UPDATE `{TABLE_RECORDED}` SET " +
+                $"`time`='{time}'" +
+                $",  `name`='{name}'" +
+                $",  `path`={filePath}" + 
+                (oldFolderName.IsNullOrEmptyOrWhiltSpace() ? "" : ", `initialfoldername`") + $"='{oldFolderName}' " +
+                $"WHERE  `id`='{mID}';", baseConnection);
+            try
+            {
+                var result = cmd.ExecuteNonQuery();
+                if (result < 1)
+                {
+                    "Unable to create record for file '{0}'".ErrorLognConsole(filePath);
+                    return null;
+                }
+                else
+                {
+                    "Data recorded [{0}]`{1}`".InfoLognConsole(mID, filePath);
+                    return mID;
+                }
+            }
+            catch (MySqlException e)
+            {
+                "Database Error:{0}".ErrorLognConsole(e.Message);
+                return null;
+            }
+            catch (Exception e)
+            {
+                "Unknow error occured when updating database : {0}".ErrorLognConsole(e.Message);
+                return null;
             }
             finally
             {
@@ -752,9 +794,11 @@ namespace RVMCore
         #region IDisposable Support
         public void Dispose()
         {
-            baseConnection.Close();
-            baseConnection.Dispose();
+            baseConnection?.Close();
+            baseConnection?.Dispose();
         }
+        ~Database()=>
+            Dispose();
         #endregion
     }
 }

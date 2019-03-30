@@ -1,7 +1,9 @@
 ﻿using RVMCore.GoogleWarpper;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
+using System.Windows.Data;
 
 namespace RVMCore.MasterView.ViewModel
 {
@@ -18,7 +20,7 @@ namespace RVMCore.MasterView.ViewModel
             }
         }
         public string FileName => System.IO.Path.GetFileName(this.FullPath);
-        public string FullPath { get; }
+        public string FullPath { get; private set; }
 
         public bool IsUploading => CheckUploading();
         public string Name { get; set; } = null;
@@ -29,18 +31,30 @@ namespace RVMCore.MasterView.ViewModel
         public bool IsOver { get; set; }
         public string RemotePath => System.IO.Path.GetDirectoryName(this.FullPath).Replace(System.IO.Path.GetPathRoot(this.FullPath), @"\EPGRecords\");
 
+        public void UpdateFile(string fullPath)
+        {
+            this.FullPath = fullPath;
+        }
+
         private Database mDatabase = null;
         public string Size => getSizeString((ulong)Length);
 
         private bool CheckUploading()
         {
-            if(this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
+            if (this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
             {
                 return System.IO.File.Exists(GoogleDrive.GetUploadStatusPath(this.FullPath));
             }
             else
             {
-                return this.mDatabase.GetFileUploadStatus(this.ID, out var uid) ?? (uid?.IsNullOrEmptyOrWhiltSpace() ??true ? false: true);
+                var rmtStatus = this.mDatabase.GetFileUploadStatus(this.ID, out var uid) ?? false;
+                if (rmtStatus) return !rmtStatus;
+                if (!(uid?.IsNullOrEmptyOrWhiltSpace() ?? true)) //if uid is not null
+                {
+                    if (uid.Length > 70) return true;
+                    else return false;
+                }
+                return false;
             }
         }
 
@@ -110,21 +124,23 @@ namespace RVMCore.MasterView.ViewModel
             return tmp;
         }
 
-        private Thread mWork = null;
         private CancellationTokenSource tokenSource;
         private ManualResetEvent manualReset;
-        private bool IsPaused { get; set; }
+        private ManualResetEvent finIndicator;
+        private bool IsPaused => !(manualReset?.WaitOne(0) ?? true);
+        public bool IsAlive { get; private set; } = false;
         public bool Upload(GoogleDrive googleDrive)
         {
             bool result = false;
             tokenSource = new CancellationTokenSource();
             manualReset = new ManualResetEvent(true);
-            IsPaused = false;
-            var workLoad = new ThreadStart(async() =>
+            finIndicator = new ManualResetEvent(false);
+            ThreadPool.QueueUserWorkItem(async x =>
             {
+                this.IsAlive = true;
                 try
                 {
-                    if(this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
+                    if (this.ID.IsNullOrEmptyOrWhiltSpace() || this.mDatabase is null)
                         result = await googleDrive.UploadResumableAsync(this.FullPath, this.RemotePath, tokenSource.Token, this.manualReset) != null;
                     else
                     {
@@ -146,24 +162,27 @@ namespace RVMCore.MasterView.ViewModel
                         }
                         else
                             result = false;
-                    } 
+                    }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     ex.Message.ErrorLognConsole();
                     return;
                 }
+                finally
+                {
+                    this.IsAlive = false;
+                    finIndicator.Set();
+                }
             });
-            mWork = new Thread(workLoad);
-            mWork.IsBackground = true;
-            mWork.Start();
             try
             {
-                mWork.Join(Timeout.Infinite);
+                finIndicator.WaitOne();
             }
             finally
             {
-                mWork = null;
+                tokenSource.Dispose();
+                manualReset.Dispose();
                 GC.Collect();
             }
             return result;
@@ -171,46 +190,27 @@ namespace RVMCore.MasterView.ViewModel
 
         public void Abort()
         {
-            if (mWork?.IsAlive ?? false)
+            this.tokenSource?.Cancel();
+            if (this.IsPaused)
             {
-                if (this.IsPaused)
-                {
-                    this.Resume(); //If paused make it alive again to cancel it.
-                }
-                this.tokenSource?.Cancel();
-                mWork?.Join(2500);
-                if (mWork?.IsAlive ?? false)
-                {
-                    mWork?.Abort();
-                }
+                this.Resume(); //If paused make it alive again to cancel it.
             }
+            finIndicator?.WaitOne(2500);
         }
 
-        public void Pause()
-        {
-            if (mWork?.IsAlive ?? false)
-            {
-                this.manualReset.Reset();
-                this.IsPaused = true;
-            }
-        }
+        public void Pause() =>
+            this.manualReset?.Reset();
 
-        public void Resume()
-        {
-            if (!(mWork is null) && mWork.IsAlive)
-            {
-                this.manualReset.Set();
-                this.IsPaused = false;  
-            }
-        }
+        public void Resume() =>
+                this.manualReset?.Set();
 
         public ThreadState ThreadState
         {
             get
             {
-                if (mWork is null) return ThreadState.Unstarted;
+                if (!this.IsAlive) return ThreadState.Unstarted;
                 if (this.IsPaused) return ThreadState.Suspended;
-                else return mWork.ThreadState;
+                else return ThreadState.Running;
             }
         }
 
@@ -282,6 +282,28 @@ namespace RVMCore.MasterView.ViewModel
                 tmp = (size).ToString() + " Byte";
             }
             return tmp;
+        }
+    }
+
+    [ValueConversion(typeof(double), typeof(double),ParameterType = typeof(double))]
+    public class ListWidthNumberConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter,
+            CultureInfo culture)
+        {
+            if (targetType != typeof(double) )
+                throw new InvalidOperationException("The target must be a number");
+
+            return (double)value - double.Parse((string)parameter);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter,
+            CultureInfo culture)
+        {
+            if (targetType != typeof(double))
+                throw new InvalidOperationException("The target must be a number");
+
+            return (double)value + double.Parse((string)parameter);
         }
     }
 }
